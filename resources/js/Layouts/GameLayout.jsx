@@ -37,18 +37,12 @@ export default function GameLayout({ header, children }) {
                     <div className="flex h-16 justify-between">
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="h-9 w-9" />
+                                <Link href={route('dashboard')}>
+                                    <ApplicationLogo className="h-9 w-9 bg-[oklch(0.08_0.005_260)]" />
                                 </Link>
                             </div>
 
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink
-                                    href={route('dashboard')}
-                                    active={route().current('dashboard')}
-                                >
-                                    Игра
-                                </NavLink>
                                 <NavLink
                                     href={route('achievements.index')}
                                     active={route().current('achievements.*')}
@@ -163,7 +157,6 @@ export default function GameLayout({ header, children }) {
 
                 <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden'}>
                     <div className="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink href={route('dashboard')} active={route().current('dashboard')}>Игра</ResponsiveNavLink>
                         <ResponsiveNavLink href={route('achievements.index')} active={route().current('achievements.*')}>Достижения</ResponsiveNavLink>
                         <ResponsiveNavLink href={route('character.show')} active={route().current('character.*')}>Персонаж</ResponsiveNavLink>
                         <ResponsiveNavLink href={route('world.map')} active={route().current('world.*')}>Карта</ResponsiveNavLink>

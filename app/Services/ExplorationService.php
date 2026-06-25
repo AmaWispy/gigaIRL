@@ -125,11 +125,38 @@ class ExplorationService
         $actions = [];
 
         for ($i = 0; $i < $count; $i++) {
-            $template = $templates[array_rand($templates)];
+            $template = $this->pickWeightedTemplate($templates);
             $actions[] = $this->instantiateAction($template, $location);
         }
 
         return $actions;
+    }
+
+    /**
+     * @param  list<array{kind: string, type: ExplorationActionType, energy_cost: int, tier?: string}>  $templates
+     * @return array{kind: string, type: ExplorationActionType, energy_cost: int, tier?: string}
+     */
+    private function pickWeightedTemplate(array $templates): array
+    {
+        $weights = config('game.exploration.action_weights', []);
+
+        $totalWeight = 0;
+        foreach ($templates as $template) {
+            $totalWeight += max(1, (int) ($weights[$template['kind']] ?? 1));
+        }
+
+        $roll = random_int(1, $totalWeight);
+        $cumulative = 0;
+
+        foreach ($templates as $template) {
+            $cumulative += max(1, (int) ($weights[$template['kind']] ?? 1));
+
+            if ($roll <= $cumulative) {
+                return $template;
+            }
+        }
+
+        return $templates[array_key_last($templates)];
     }
 
     /**
@@ -169,7 +196,7 @@ class ExplorationService
 
         if (Monster::where('location_id', $location->id)->where('tier', 'rare')->exists()) {
             $templates[] = [
-                'kind' => 'monster',
+                'kind' => 'rare_monster',
                 'type' => ExplorationActionType::RareMonster,
                 'energy_cost' => $exploration['rare_monster_energy'],
                 'tier' => 'rare',
@@ -178,7 +205,7 @@ class ExplorationService
 
         if (Monster::where('location_id', $location->id)->where('tier', 'boss')->exists()) {
             $templates[] = [
-                'kind' => 'monster',
+                'kind' => 'boss',
                 'type' => ExplorationActionType::Boss,
                 'energy_cost' => $exploration['boss_energy'],
                 'tier' => 'boss',
@@ -196,7 +223,7 @@ class ExplorationService
     {
         $payload = [];
 
-        if ($template['kind'] === 'monster') {
+        if (isset($template['tier'])) {
             $monster = Monster::where('location_id', $location->id)
                 ->where('tier', $template['tier'])
                 ->inRandomOrder()

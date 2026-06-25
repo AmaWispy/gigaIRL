@@ -34,9 +34,34 @@ return [
             'n' => 3,
         ],
         'vampire_strike' => [
-            'lifesteal_ratio' => 0.5,
+            'lifesteal_ratio' => 0.4,
+            'bonus_damage' => 3,
             'trigger' => 'every_nth_attack',
             'n' => 3,
+        ],
+        // Каменная кожа: каждый третий удар противника наносит на 20 брони меньше урона.
+        'stone_skin' => [
+            'bonus_defense' => 20,
+            'trigger' => 'every_nth_monster_attack',
+            'n' => 3,
+        ],
+        // Поиск бреши: каждый второй удар срезает 2 брони. Когда броня <= 0, цель получает +25% урона.
+        'find_the_gap' => [
+            'armor_shred' => 2,
+            'trigger' => 'every_nth_attack',
+            'n' => 2,
+            'broken_armor_bonus_percent' => 25,
+        ],
+        // Второе дыхание: при HP <= 10% разово лечит на 20% от макс. HP.
+        'second_wind' => [
+            'hp_threshold_percent' => 10,
+            'heal_percent' => 20,
+            'once_per_combat' => true,
+        ],
+        // Палач: пока HP цели ниже 30%, атаки наносят +50% урона.
+        'executioner' => [
+            'hp_threshold_percent' => 30,
+            'damage_bonus_percent' => 50,
         ],
     ],
 ];

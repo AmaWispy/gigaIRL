@@ -356,6 +356,7 @@ class DungeonService
         DB::transaction(function () use ($character, $run) {
             $this->syncCharacterHp($character, $run->character_hp);
             $this->closeRun($run);
+            $this->relocateAfterDungeon($character, $run->dungeon, fallbackToCity: false);
         });
     }
 
@@ -496,18 +497,23 @@ class DungeonService
             'completed_at' => now(),
         ]);
 
-        $this->returnCharacterToCity($character);
+        $this->relocateAfterDungeon($character, $run->dungeon, fallbackToCity: true);
     }
 
-    private function returnCharacterToCity(Character $character): void
+    private function relocateAfterDungeon(Character $character, Dungeon $dungeon, bool $fallbackToCity): void
     {
-        $city = Location::where('type', 'city')->first();
+        $dungeon->loadMissing('returnLocation');
+        $target = $dungeon->returnLocation;
 
-        if (! $city) {
+        if (! $target && $fallbackToCity) {
+            $target = Location::where('type', 'city')->first();
+        }
+
+        if (! $target) {
             return;
         }
 
-        $character->update(['current_location_id' => $city->id]);
+        $character->update(['current_location_id' => $target->id]);
         session()->forget('dungeon_entrance_id');
         app(ExplorationService::class)->clearActiveSessions($character);
     }
@@ -542,6 +548,7 @@ class DungeonService
 
         $this->syncCharacterHp($character, $run->character_hp);
         $this->closeRun($run, completed: true);
+        $this->relocateAfterDungeon($character, $dungeon, fallbackToCity: false);
 
         return [
             'bonus_xp' => $bonusXp,
@@ -602,6 +609,13 @@ class DungeonService
             if ($equip) {
                 $items[] = $equip;
             }
+        }
+
+        $seal = Item::where('catalog_key', 'craftsman_seal')->first();
+
+        if ($seal && random_int(1, 100) <= $dungeon->lootChance($role, 'craftsman_seal')) {
+            $this->inventoryService->addItem($character, $seal, 1);
+            $items[] = ['name' => $seal->name, 'quantity' => 1];
         }
 
         if (random_int(1, 100) <= $dungeon->rare_resource_from_mob_chance) {

@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import TierBadge from '@/Components/Admin/TierBadge';
 
 const QUALITY_LABELS = {
     white: 'Белое',
@@ -107,6 +108,16 @@ export default function FieldDisplay({ field, value }) {
     const items = lookups.items ?? {};
 
     let content;
+
+    if (field.name === 'tier') {
+        content = <TierBadge value={value} />;
+        return (
+            <div>
+                <dt className="text-sm font-medium text-slate-500">{field.label}</dt>
+                <dd className="mt-1">{content}</dd>
+            </div>
+        );
+    }
 
     switch (field.type) {
         case 'loot_table':

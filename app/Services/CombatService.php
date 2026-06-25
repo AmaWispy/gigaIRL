@@ -123,6 +123,7 @@ class CombatService
             $attack = $this->characterService->getEffectiveStrength($character);
             $defense = $this->characterService->getEffectiveDefense($character);
             $skipMonsterTurn = false;
+            $state = $combat->combat_state ?? [];
 
             if ($monsterHp > 0) {
                 $attackResult = $this->combatSkillService->resolveCharacterAttack(
@@ -132,6 +133,7 @@ class CombatService
                     $attack,
                 );
 
+                $state['defense_reduction'] = $attackResult['defense_reduction'];
                 $monsterHp = max(0, $monsterHp - $attackResult['damage']);
 
                 if ($attackResult['heal'] > 0) {
@@ -159,7 +161,8 @@ class CombatService
             }
 
             if ($monsterHp > 0 && ! $skipMonsterTurn) {
-                $armorResult = $this->combatDamageService->resolve($monster->attack, $defense);
+                $mitigation = $this->combatSkillService->resolveIncomingMitigation($combat, $character);
+                $armorResult = $this->combatDamageService->resolve($monster->attack, $defense + $mitigation['bonus_defense']);
                 $monsterDamage = $armorResult['damage'];
                 $blockedDamage = $armorResult['blocked'];
                 $retribution = $this->combatSkillService->resolveMonsterAttackRetribution(
@@ -193,10 +196,34 @@ class CombatService
                         'actor' => 'monster',
                         'action' => 'attack',
                         'damage' => $monsterDamage,
-                        'meta' => ['blocked' => $blockedDamage],
+                        'meta' => ['blocked' => $blockedDamage, 'skills' => $mitigation['labels']],
                         'character_hp_after' => $charHp,
                         'monster_hp_after' => $monsterHp,
                     ]);
+                    $roundNumber++;
+
+                    if ($charHp > 0) {
+                        $effectiveMaxHp = $this->characterService->getEffectiveMaxHp($character);
+                        $secondWind = $this->combatSkillService->resolveSecondWind($combat, $character, $charHp, $effectiveMaxHp);
+
+                        if ($secondWind['heal'] > 0) {
+                            $charHp = min($effectiveMaxHp, $charHp + $secondWind['heal']);
+                            $state['second_wind_used'] = true;
+
+                            CombatRound::create([
+                                'combat_id' => $combat->id,
+                                'round_number' => $roundNumber,
+                                'actor' => 'character',
+                                'action' => 'second_wind',
+                                'damage' => 0,
+                                'heal' => $secondWind['heal'],
+                                'meta' => ['skills' => $secondWind['labels']],
+                                'character_hp_after' => $charHp,
+                                'monster_hp_after' => $monsterHp,
+                            ]);
+                            $roundNumber++;
+                        }
+                    }
                 }
             } elseif ($monsterHp > 0 && $skipMonsterTurn) {
                 CombatRound::create([
@@ -214,6 +241,7 @@ class CombatService
             $combat->update([
                 'character_hp' => $charHp,
                 'monster_hp' => $monsterHp,
+                'combat_state' => $state,
             ]);
 
             if ($monsterHp <= 0) {

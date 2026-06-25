@@ -1,7 +1,7 @@
 import GameLayout from '@/Layouts/GameLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-const shopTypes = ['material_merchant', 'armorer', 'alchemist', 'guild_master'];
+const shopTypes = ['material_merchant', 'armorer', 'alchemist', 'guild_master', 'recipe_merchant', 'seal_trader'];
 
 export default function WorldCity({ character, location, innCost, innRestorePercent }) {
     const innForm = useForm({});

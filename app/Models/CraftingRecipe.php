@@ -17,6 +17,7 @@ class CraftingRecipe extends Model
         'recipe_scroll_item_id',
         'fixed_result_quality',
         'upgradable',
+        'quality_upgradable',
         'ingredients',
     ];
 
@@ -25,6 +26,7 @@ class CraftingRecipe extends Model
         return [
             'ingredients' => 'array',
             'upgradable' => 'boolean',
+            'quality_upgradable' => 'boolean',
         ];
     }
 

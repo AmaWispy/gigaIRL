@@ -1,3 +1,4 @@
+import TierBadge from '@/Components/Admin/TierBadge';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -52,7 +53,11 @@ export default function Index({ resourceKey, resource, records, filters }) {
                             <tr key={row.id} className="border-b hover:bg-slate-50">
                                 {resource.columns.map((col) => (
                                     <td key={col} className="px-4 py-2 text-slate-700">
-                                        {String(row[col] ?? '—')}
+                                        {col === 'tier' ? (
+                                            <TierBadge value={row[col]} />
+                                        ) : (
+                                            String(row[col] ?? '—')
+                                        )}
                                     </td>
                                 ))}
                                 <td className="px-4 py-2 text-right whitespace-nowrap">

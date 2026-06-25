@@ -17,6 +17,7 @@ class Dungeon extends Model
         'item_level',
         'min_power',
         'location_id',
+        'return_location_id',
         'description',
         'entry_energy',
         'floor_energy',
@@ -60,6 +61,11 @@ class Dungeon extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function returnLocation(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'return_location_id');
     }
 
     public function dungeonMonsters(): HasMany

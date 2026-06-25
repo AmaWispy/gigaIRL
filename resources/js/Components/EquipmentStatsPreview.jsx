@@ -15,7 +15,7 @@ function formatStats(stats) {
         parts.push(`+${stats.max_hp} HP`);
     }
 
-    return `БСП ${stats.bsp}${parts.length ? ` · ${parts.join(' · ')}` : ''}`;
+    return parts.length ? parts.join(' · ') : '—';
 }
 
 export default function EquipmentStatsPreview({ preview, className = '' }) {

@@ -115,15 +115,18 @@ class DungeonConfigService
             ],
             'loot_rules' => [
                 ['source' => 'normal', 'reward_type' => 'potion', 'chance_percent' => 5],
-                ['source' => 'normal', 'reward_type' => 'set_equipment', 'chance_percent' => 3],
+                ['source' => 'normal', 'reward_type' => 'set_equipment', 'chance_percent' => 8],
+                ['source' => 'normal', 'reward_type' => 'craftsman_seal', 'chance_percent' => 10],
                 ['source' => 'rare', 'reward_type' => 'potion', 'chance_percent' => 8],
-                ['source' => 'rare', 'reward_type' => 'set_equipment', 'chance_percent' => 12],
+                ['source' => 'rare', 'reward_type' => 'set_equipment', 'chance_percent' => 25],
+                ['source' => 'rare', 'reward_type' => 'craftsman_seal', 'chance_percent' => 25],
                 ['source' => 'boss', 'reward_type' => 'potion', 'chance_percent' => 10],
-                ['source' => 'boss', 'reward_type' => 'set_equipment', 'chance_percent' => 35],
-                ['source' => 'boss', 'reward_type' => 'set_equipment_extra', 'chance_percent' => 25],
+                ['source' => 'boss', 'reward_type' => 'set_equipment', 'chance_percent' => 60],
+                ['source' => 'boss', 'reward_type' => 'set_equipment_extra', 'chance_percent' => 40],
+                ['source' => 'boss', 'reward_type' => 'craftsman_seal', 'chance_percent' => 50],
                 ['source' => 'treasure', 'reward_type' => 'potion', 'chance_percent' => 7],
-                ['source' => 'treasure', 'reward_type' => 'set_equipment', 'chance_percent' => 5],
-                ['source' => 'treasure', 'reward_type' => 'craftsman_seal', 'chance_percent' => 2],
+                ['source' => 'treasure', 'reward_type' => 'set_equipment', 'chance_percent' => 15],
+                ['source' => 'treasure', 'reward_type' => 'craftsman_seal', 'chance_percent' => 12],
                 ['source' => 'treasure', 'reward_type' => 'transformation_sphere', 'chance_percent' => 3],
             ],
             'resource_pools' => [
@@ -131,5 +134,33 @@ class DungeonConfigService
                 'rare' => ['obsidian_shard', 'rune_dust'],
             ],
         ];
+    }
+
+    /**
+     * Дефолты тира 2 («Пещера Арахнидов»).
+     *
+     * @return array{settings: array<string, mixed>, loot_rules: list<array{source: string, reward_type: string, chance_percent: int}>, resource_pools: array{common: list<string>, rare: list<string>}}
+     */
+    public function tierTwoDefaults(): array
+    {
+        $defaults = $this->tierOneDefaults();
+
+        $defaults['settings'] = array_merge($defaults['settings'], [
+            'entry_energy' => 14,
+            'pass_price' => 800,
+            'treasure_money_min' => 30,
+            'treasure_money_max' => 130,
+            'mob_money_multiplier' => 1.8,
+            'clear_bonus_money' => 200,
+            'exploration_entrance_chance' => 8,
+            'exploration_entrance_energy' => 3,
+        ]);
+
+        $defaults['resource_pools'] = [
+            'common' => ['monster_hide', 'mana_crystal', 'twilight_essence'],
+            'rare' => ['spider_silk', 'venom_gland'],
+        ];
+
+        return $defaults;
     }
 }

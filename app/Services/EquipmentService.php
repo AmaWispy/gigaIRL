@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Character;
 use App\Models\CraftingRecipe;
 use App\Models\InventoryItem;
 use App\Models\Item;
@@ -264,6 +265,21 @@ class EquipmentService
         }
 
         $level = $item->item_level ?? 1;
+
+        if ($recipe?->fixed_result_quality) {
+            $quality = $recipe->fixed_result_quality;
+
+            return [
+                'level' => $level,
+                'variants' => [
+                    [
+                        'quality' => $quality,
+                        'quality_label' => $this->qualityEmoji($quality),
+                        'stats' => $this->computeStats($item, $quality, $level, 'crafted'),
+                    ],
+                ],
+            ];
+        }
 
         return [
             'level' => $level,

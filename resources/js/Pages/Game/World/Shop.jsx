@@ -68,6 +68,13 @@ export default function Shop({ character, poiTitle, greeting, offers, inventory 
 function OfferRow({ offer, owned }) {
     const form = useForm({});
 
+    const cost = offer.cost_item;
+    const notEnoughTokens = cost && cost.owned < cost.quantity;
+    const outOfStock = offer.stock !== null && offer.stock <= 0;
+    const priceLabel = cost
+        ? `${cost.quantity} × ${cost.name}`
+        : `${offer.buy_price} 💰`;
+
     return (
         <div className="flex items-center justify-between rounded-lg border bg-white p-4 shadow-sm">
             <div>
@@ -78,6 +85,11 @@ function OfferRow({ offer, owned }) {
                 </p>
                 <p className="text-sm text-gray-500">{offer.description}</p>
                 <EquipmentStatsPreview preview={offer.equipment_preview} className="mt-1" />
+                {cost && (
+                    <p className={`mt-1 text-xs ${notEnoughTokens ? 'text-red-600' : 'text-emerald-700'}`}>
+                        Цена: {cost.quantity} × {cost.name} (у вас: {cost.owned})
+                    </p>
+                )}
                 {owned > 0 && (
                     <p className="mt-1 text-xs text-indigo-600">У вас: {owned}</p>
                 )}
@@ -87,10 +99,10 @@ function OfferRow({ offer, owned }) {
             </div>
             <button
                 onClick={() => form.post(route('world.shop.buy', offer.id), { preserveScroll: true })}
-                disabled={form.processing || (offer.stock !== null && offer.stock <= 0)}
+                disabled={form.processing || outOfStock || notEnoughTokens}
                 className="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-                {offer.buy_price} 💰
+                {priceLabel}
             </button>
         </div>
     );

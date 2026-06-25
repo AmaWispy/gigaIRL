@@ -2,6 +2,7 @@ import GameLayout from '@/Layouts/GameLayout';
 import EquipmentStatsPreview from '@/Components/EquipmentStatsPreview';
 import { itemDisplayName } from '@/utils/itemDisplayName';
 import { Head, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 
 const slotLabels = {
     boots: 'Ботинки', pants: 'Штаны', weapon: 'Оружие', gloves: 'Перчатки',
@@ -9,7 +10,28 @@ const slotLabels = {
     necklace: 'Ожерелье', armor: 'Броня', cloak: 'Плащ',
 };
 
+const qualityBorderColors = {
+    green: 'border-green-500',
+    blue: 'border-blue-500',
+    purple: 'border-purple-500',
+    red: 'border-red-500',
+};
+
+function qualityBorderClass(quality) {
+    return qualityBorderColors[quality] ?? 'border-gray-300';
+}
+
 export default function CharacterShow({ character, inventory, equipped, equipmentSlots, skills = [], maxSkillSlots = 1 }) {
+    const [inventoryTab, setInventoryTab] = useState('equipment');
+
+    const equipmentItems = inventory.filter((inv) => inv.item.type === 'equipment');
+    const materialItems = inventory.filter((inv) => inv.item.type !== 'equipment');
+    const inventoryTabs = [
+        { id: 'equipment', label: 'Экипировка', items: equipmentItems },
+        { id: 'materials', label: 'Материалы', items: materialItems },
+    ];
+    const activeInventoryItems = inventoryTabs.find((t) => t.id === inventoryTab)?.items ?? [];
+
     return (
         <GameLayout header={<h2 className="text-xl font-semibold text-gray-800">Персонаж</h2>}>
             <Head title="Персонаж" />
@@ -81,11 +103,32 @@ export default function CharacterShow({ character, inventory, equipped, equipmen
 
                         <div className="rounded-lg bg-white p-6 shadow-sm lg:col-span-2">
                             <h3 className="mb-4 text-lg font-semibold">Инвентарь</h3>
-                            {inventory.length === 0 ? (
-                                <p className="text-sm text-gray-500">Инвентарь пуст</p>
+                            <div className="mb-4 flex gap-2 border-b">
+                                {inventoryTabs.map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        onClick={() => setInventoryTab(tab.id)}
+                                        className={`px-4 py-2 text-sm font-medium ${
+                                            inventoryTab === tab.id
+                                                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                        <span className="ml-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                                            {tab.items.length}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                            {activeInventoryItems.length === 0 ? (
+                                <p className="text-sm text-gray-500">
+                                    {inventoryTab === 'equipment' ? 'Нет экипировки в инвентаре' : 'Нет материалов'}
+                                </p>
                             ) : (
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                                    {inventory.map((inv) => (
+                                    {activeInventoryItems.map((inv) => (
                                         <InventoryRow key={inv.id} inv={inv} />
                                     ))}
                                 </div>
@@ -162,7 +205,7 @@ function EquippedSlot({ slot, item }) {
     const form = useForm({ slot });
 
     return (
-        <div className="rounded border px-3 py-2 text-sm">
+        <div className={`rounded border-2 px-3 py-2 text-sm ${item ? qualityBorderClass(item.quality) : 'border-gray-300'}`}>
             <div className="flex items-center justify-between gap-2">
                 <span className="text-gray-500">{slotLabels[slot] || slot}</span>
                 {item ? (

@@ -1,3 +1,5 @@
+import TierBadge from '@/Components/Admin/TierBadge';
+
 function SettingGroups({ groups }) {
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -39,6 +41,57 @@ function LootRulesTable({ rules }) {
                             <td className="px-3 py-2 text-slate-900">{rule.source_label}</td>
                             <td className="px-3 py-2 text-slate-900">{rule.reward_type_label}</td>
                             <td className="px-3 py-2 font-medium text-slate-900">{rule.chance_percent}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function SetEquipmentTable({ items }) {
+    if (!items?.length) {
+        return <p className="text-sm text-slate-500">Сетовая экипировка не найдена</p>;
+    }
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50">
+                    <tr>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">Предмет</th>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">Слот</th>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">Тир</th>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">Ур.</th>
+                        <th className="px-3 py-2 text-left font-medium text-slate-600">Статы</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                    {items.map((item, i) => (
+                        <tr key={i}>
+                            <td className="px-3 py-2 text-slate-900">{item.name}</td>
+                            <td className="px-3 py-2 text-slate-700">{item.slot_label}</td>
+                            <td className="px-3 py-2">
+                                <TierBadge value={item.tier} />
+                            </td>
+                            <td className="px-3 py-2 text-slate-700">{item.item_level ?? '—'}</td>
+                            <td className="px-3 py-2 text-slate-700">
+                                {item.stats?.length ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {item.stats.map((stat, si) => (
+                                            <span
+                                                key={si}
+                                                className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs"
+                                            >
+                                                <span className="text-slate-500">{stat.label}</span>
+                                                <span className="font-medium text-slate-900">{stat.value}</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    '—'
+                                )}
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -91,6 +144,16 @@ export default function DungeonConfigView({ config, showHeader = true }) {
                     Правила дропа
                 </h4>
                 <LootRulesTable rules={config.loot_rules} />
+            </div>
+
+            <div>
+                <h4 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-600">
+                    Выпадающая экипировка (сет)
+                </h4>
+                <p className="mb-3 text-xs text-slate-400">
+                    Статы указаны для зелёного качества; реальное качество роллится при выпадении
+                </p>
+                <SetEquipmentTable items={config.set_equipment} />
             </div>
 
             <div>

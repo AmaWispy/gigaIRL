@@ -3,9 +3,15 @@
 namespace App\Admin;
 
 use App\Models\Dungeon;
+use App\Models\Item;
+use App\Services\EquipmentService;
 
 class DungeonConfigPresenter
 {
+  public function __construct(private EquipmentService $equipmentService)
+  {
+  }
+
   private const SOURCE_LABELS = [
     'normal' => 'Обычный моб',
     'rare' => 'Редкий моб',
@@ -19,6 +25,27 @@ class DungeonConfigPresenter
     'set_equipment_extra' => 'Доп. экипировка сета',
     'craftsman_seal' => 'Печать мастера',
     'transformation_sphere' => 'Сфера превращения',
+  ];
+
+  private const SLOT_LABELS = [
+    'helmet' => 'Шлем',
+    'armor' => 'Броня',
+    'pants' => 'Штаны',
+    'boots' => 'Ботинки',
+    'gloves' => 'Перчатки',
+    'belt' => 'Пояс',
+    'cloak' => 'Плащ',
+    'necklace' => 'Ожерелье',
+    'ring1' => 'Кольцо',
+    'ring2' => 'Кольцо',
+    'ring' => 'Кольцо',
+    'weapon' => 'Оружие',
+  ];
+
+  private const STAT_LABELS = [
+    'strength' => 'Сила',
+    'defense' => 'Защита',
+    'max_hp' => 'ОЗ',
   ];
 
   /** @return array<string, mixed> */
@@ -53,7 +80,59 @@ class DungeonConfigPresenter
           ->values()
           ->all(),
       ],
+      'set_equipment' => $this->setEquipment($dungeon),
     ];
+  }
+
+  /**
+   * Экипировка, которая может выпасть в данже (по ключу сета).
+   *
+   * @return list<array{name: string, slot: string, slot_label: string, tier: ?string, item_level: ?int}>
+   */
+  private function setEquipment(Dungeon $dungeon): array
+  {
+    if (! $dungeon->set_key) {
+      return [];
+    }
+
+    return Item::query()
+      ->where('set_key', $dungeon->set_key)
+      ->where('type', 'equipment')
+      ->orderBy('slot')
+      ->orderBy('name')
+      ->get()
+      ->map(fn (Item $item) => [
+        'name' => $item->name,
+        'slot' => $item->slot,
+        'slot_label' => self::SLOT_LABELS[$item->slot] ?? $item->slot,
+        'tier' => $item->tier,
+        'item_level' => $item->item_level,
+        'stats' => $this->equipmentStats($item, $dungeon),
+      ])
+      ->all();
+  }
+
+  /**
+   * Базовые статы экипировки (зелёное качество, уровень и источник данжа).
+   * Реальное качество роллится при выпадении, поэтому показываем зелёный как базу.
+   *
+   * @return list<array{label: string, value: int}>
+   */
+  private function equipmentStats(Item $item, Dungeon $dungeon): array
+  {
+    $level = $item->item_level ?? $dungeon->item_level ?? 1;
+    $stats = $this->equipmentService->computeStats($item, 'green', $level, 'dungeon');
+
+    $ordered = [];
+
+    foreach (self::STAT_LABELS as $key => $label) {
+      $value = (int) ($stats[$key] ?? 0);
+      if ($value !== 0) {
+        $ordered[] = ['label' => $label, 'value' => $value];
+      }
+    }
+
+    return $ordered;
   }
 
   /** @return list<array{title: string, fields: list<array{label: string, value: mixed}>}> */

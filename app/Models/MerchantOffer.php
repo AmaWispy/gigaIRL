@@ -12,6 +12,8 @@ class MerchantOffer extends Model
         'poi_type',
         'item_id',
         'buy_price',
+        'cost_item_id',
+        'cost_quantity',
         'stock',
     ];
 
@@ -23,5 +25,10 @@ class MerchantOffer extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function costItem(): BelongsTo
+    {
+        return $this->belongsTo(Item::class, 'cost_item_id');
     }
 }

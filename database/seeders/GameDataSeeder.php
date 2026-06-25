@@ -88,12 +88,50 @@ class GameDataSeeder extends Seeder
 
         $dungeon = Location::where('name', 'Заброшенная Шахта')->first();
 
+        $swamp = Location::firstOrCreate(
+            ['name' => 'Болотные Тропы'],
+            ['type' => 'forest', 'min_power' => 50, 'world_tier' => 2, 'is_safe' => false, 'description' => 'Тир 2. Топи, пиявки и шёпот из тумана. Под ногами что-то шевелится.']
+        );
+
+        $ruins = Location::firstOrCreate(
+            ['name' => 'Древние Руины'],
+            ['type' => 'field', 'min_power' => 60, 'world_tier' => 2, 'is_safe' => false, 'description' => 'Тир 2. Обвалившиеся колонны и ожившие стражи давно забытого зала.']
+        );
+
+        Location::firstOrCreate(
+            ['name' => 'Пещера Арахнидов'],
+            ['type' => 'dungeon', 'min_power' => 80, 'world_tier' => 2, 'is_safe' => false, 'description' => 'Тир 2. Залитые паутиной тоннели. В глубине ждёт Королева.']
+        );
+
+        $spiderCave = Location::where('name', 'Пещера Арахнидов')->first();
+
+        $camp = Location::firstOrCreate(
+            ['name' => 'Лагерь Искателей'],
+            ['type' => 'camp', 'min_power' => 0, 'is_safe' => true, 'description' => 'Перевалочный лагерь авантюристов тира 2. Костёр, рецепты и торговцы редкостями.']
+        );
+
+        $campPois = [
+            ['name' => 'Старый картограф', 'type' => 'recipe_merchant', 'description' => 'Свитки рецептов тира 2, припасы и пропуск в Пещеру Арахнидов'],
+            ['name' => 'Хранитель печатей', 'type' => 'seal_trader', 'description' => 'Обменивает печати исследователя на редкое снаряжение'],
+        ];
+
+        foreach ($campPois as $poi) {
+            LocationPoi::updateOrCreate(
+                ['location_id' => $camp->id, 'type' => $poi['type']],
+                ['name' => $poi['name'], 'description' => $poi['description']]
+            );
+        }
+
         $connections = [
             [$city->id, $village->id, 1],
             [$city->id, $forest->id, 2],
             [$city->id, $field->id, 1],
             [$forest->id, $dungeon->id, 3],
             [$village->id, $field->id, 1],
+            [$forest->id, $swamp->id, 3],
+            [$swamp->id, $ruins->id, 2],
+            [$ruins->id, $spiderCave->id, 3],
+            [$ruins->id, $camp->id, 2],
         ];
 
         foreach ($connections as [$from, $to, $cost]) {
@@ -134,6 +172,42 @@ class GameDataSeeder extends Seeder
             ['catalog_key' => 'C-BO01', 'name' => 'Укреплённые сапоги', 'slot' => 'boots', 'item_level' => 7],
             ['catalog_key' => 'C-BE01', 'name' => 'Кожаный пояс (крафт)', 'slot' => 'belt', 'item_level' => 7],
             ['catalog_key' => 'C-R01', 'name' => 'Кольцо закалённой воли', 'slot' => 'ring1', 'item_level' => 7],
+            ['catalog_key' => 'C-A02', 'name' => 'Панцирь охотника', 'slot' => 'armor', 'item_level' => 14, 'description' => 'Тяжёлый панцирь из шкур болотных тварей. Высокая защита и запас здоровья. Ур. 14.'],
+            ['catalog_key' => 'C-G02', 'name' => 'Перчатки кристалломанта', 'slot' => 'gloves', 'item_level' => 14, 'description' => 'Перчатки, усиленные кристаллами маны. Баланс урона и защиты. Ур. 14.'],
+            ['catalog_key' => 'C-W03', 'name' => 'Клинок ведьмы', 'slot' => 'weapon', 'item_level' => 14, 'description' => 'Оружие, выкованное на Ядре Ведьмы. Высокий урон. Ур. 14.'],
+        ];
+
+        $exchangeGear = [
+            [
+                'catalog_key' => 'seal_cloak',
+                'name' => 'Плащ следопыта',
+                'slot' => 'cloak',
+                'item_level' => 14,
+                'tier' => 'blue',
+                'tier_emoji' => '🔵',
+                'stats' => [
+                    'fixed' => true,
+                    'strength' => 0,
+                    'defense' => 0,
+                    'max_hp' => 15,
+                ],
+                'description' => 'Награда за печать исследователя: +15 HP. Фиксированные характеристики.',
+            ],
+            [
+                'catalog_key' => 'seal_amulet',
+                'name' => 'Амулет искателя',
+                'slot' => 'necklace',
+                'item_level' => 14,
+                'tier' => 'blue',
+                'tier_emoji' => '🔵',
+                'stats' => [
+                    'fixed' => true,
+                    'strength' => 3,
+                    'defense' => 0,
+                    'max_hp' => 3,
+                ],
+                'description' => 'Награда за 2 печати исследователя: +3 урона и +3 HP. Фиксированные характеристики.',
+            ],
         ];
 
         $dungeonGear = [
@@ -142,6 +216,14 @@ class GameDataSeeder extends Seeder
             ['catalog_key' => 'D-A01', 'name' => 'Нагрудник с рунами', 'slot' => 'armor', 'item_level' => 7, 'set_key' => 'mine_fury'],
             ['catalog_key' => 'D-G01', 'name' => 'Перчатки шахтёра', 'slot' => 'gloves', 'item_level' => 7, 'set_key' => 'mine_fury'],
             ['catalog_key' => 'D-P01', 'name' => 'Штаны забойщика', 'slot' => 'pants', 'item_level' => 7, 'set_key' => 'mine_fury'],
+        ];
+
+        $dungeonGearT2 = [
+            ['catalog_key' => 'D2-W01', 'name' => 'Жало королевы', 'slot' => 'weapon', 'item_level' => 14, 'set_key' => 'arachnid_web'],
+            ['catalog_key' => 'D2-H01', 'name' => 'Маска плетельщицы', 'slot' => 'helmet', 'item_level' => 14, 'set_key' => 'arachnid_web'],
+            ['catalog_key' => 'D2-A01', 'name' => 'Панцирь аранеи', 'slot' => 'armor', 'item_level' => 14, 'set_key' => 'arachnid_web'],
+            ['catalog_key' => 'D2-N01', 'name' => 'Амулет яда', 'slot' => 'necklace', 'item_level' => 14, 'set_key' => 'arachnid_web'],
+            ['catalog_key' => 'D2-BE01', 'name' => 'Пояс шёлка', 'slot' => 'belt', 'item_level' => 14, 'set_key' => 'arachnid_web'],
         ];
 
         $dungeonExtras = [
@@ -164,18 +246,26 @@ class GameDataSeeder extends Seeder
         $items = [
             ['catalog_key' => 'teleport_stone', 'name' => 'Камень перемещения', 'type' => 'teleport_stone', 'buy_price' => 200, 'sell_price' => 50, 'description' => 'Телепорт без траты энергии'],
             ['catalog_key' => 'healing_potion', 'name' => 'Зелье лечения', 'type' => 'consumable', 'tier' => 'green', 'tier_emoji' => '🟢', 'stats' => ['hp_restore' => 15], 'buy_price' => 250, 'sell_price' => 10, 'description' => 'Восстанавливает 15 HP'],
+            ['catalog_key' => 'greater_healing_potion', 'name' => '🔵 Большое зелье лечения', 'type' => 'consumable', 'tier' => 'blue', 'tier_emoji' => '🔵', 'stats' => ['hp_restore' => 35], 'buy_price' => 500, 'sell_price' => 25, 'description' => 'Восстанавливает 35 HP'],
             ['catalog_key' => 'iron_ore', 'name' => '🟢 Железная руда', 'type' => 'resource', 'tier' => 'green', 'tier_emoji' => '🟢', 'buy_price' => 20, 'sell_price' => 5, 'description' => 'Тир 1. Основа кузнечного дела'],
             ['catalog_key' => 'wood', 'name' => '🟢 Крепкая древесина', 'type' => 'resource', 'tier' => 'green', 'tier_emoji' => '🟢', 'buy_price' => 15, 'sell_price' => 4, 'description' => 'Тир 1'],
             ['catalog_key' => 'leather', 'name' => '🟢 Грубая кожа', 'type' => 'resource', 'tier' => 'green', 'tier_emoji' => '🟢', 'buy_price' => 12, 'sell_price' => 3, 'description' => 'Тир 1'],
             ['catalog_key' => 'monster_hide', 'name' => '🔵 Шкура монстра', 'type' => 'resource', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 80, 'sell_price' => 25, 'description' => 'Тир 2'],
             ['catalog_key' => 'mana_crystal', 'name' => '🔵 Кристалл маны', 'type' => 'resource', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 120, 'sell_price' => 40, 'description' => 'Тир 2'],
-            ['catalog_key' => 'witch_core', 'name' => '⭐ Ядро Ведьмы', 'type' => 'resource', 'tier' => 'boss', 'tier_emoji' => '⭐', 'buy_price' => 0, 'sell_price' => 500, 'description' => 'Эксклюзив босса'],
-            ['catalog_key' => 'craftsman_seal', 'name' => 'Печать ремесленника', 'type' => 'upgrade_material', 'buy_price' => 0, 'sell_price' => 10, 'description' => 'Улучшение торговой и крафтовой экипировки'],
-            ['catalog_key' => 'transformation_sphere', 'name' => 'Сфера становления', 'type' => 'upgrade_material', 'buy_price' => 0, 'sell_price' => 25, 'description' => 'Повышение уровня данжевого сета'],
-            ['catalog_key' => 'explorer_seal', 'name' => 'Печать исследователя', 'type' => 'dungeon_token', 'buy_price' => 0, 'sell_price' => 50, 'description' => 'Награда за полное прохождение данжа'],
+            ['catalog_key' => 'witch_core', 'name' => '🟣 Ядро Ведьмы', 'type' => 'resource', 'tier' => 'purple', 'tier_emoji' => '🟣', 'buy_price' => 0, 'sell_price' => 500, 'description' => 'Эксклюзив босса'],
+            ['catalog_key' => 'craftsman_seal', 'name' => '🟢 Печать ремесленника', 'type' => 'upgrade_material', 'tier' => 'green', 'tier_emoji' => '🟢', 'buy_price' => 0, 'sell_price' => 10, 'description' => 'Улучшение торговой и крафтовой экипировки'],
+            ['catalog_key' => 'transformation_sphere', 'name' => '🔵 Сфера становления', 'type' => 'upgrade_material', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 0, 'sell_price' => 25, 'description' => 'Повышение уровня данжевого сета'],
+            ['catalog_key' => 'explorer_seal', 'name' => '🔴 Печать исследователя', 'type' => 'dungeon_token', 'tier' => 'red', 'tier_emoji' => '🔴', 'buy_price' => 0, 'sell_price' => 50, 'description' => 'Награда за полное прохождение данжа'],
             ['catalog_key' => 'dungeon_pass_t1', 'name' => 'Пропуск в Шахту', 'type' => 'dungeon_pass', 'buy_price' => 500, 'sell_price' => 0, 'description' => 'Расходуется при входе в «Заброшенная Шахта»', 'stats' => ['dungeon_key' => 'mine_t1']],
+            ['catalog_key' => 'dungeon_pass_t2', 'name' => 'Пропуск в Пещеру Арахнидов', 'type' => 'dungeon_pass', 'buy_price' => 800, 'sell_price' => 0, 'description' => 'Расходуется при входе в «Пещера Арахнидов»', 'stats' => ['dungeon_key' => 'spider_t2']],
             ['catalog_key' => 'obsidian_shard', 'name' => '🟣 Обсидиановый осколок', 'type' => 'resource', 'tier' => 'purple', 'tier_emoji' => '🟣', 'buy_price' => 0, 'sell_price' => 40, 'description' => 'Редкий данжевый ресурс тира 1'],
             ['catalog_key' => 'rune_dust', 'name' => '🔵 Пыль рун', 'type' => 'resource', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 0, 'sell_price' => 35, 'description' => 'Редкий данжевый ресурс тира 1'],
+            ['catalog_key' => 'spider_silk', 'name' => '🟣 Королевский шёлк', 'type' => 'resource', 'tier' => 'purple', 'tier_emoji' => '🟣', 'buy_price' => 0, 'sell_price' => 70, 'description' => 'Редкий данжевый ресурс тира 2'],
+            ['catalog_key' => 'venom_gland', 'name' => '🔵 Ядовитая железа', 'type' => 'resource', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 0, 'sell_price' => 55, 'description' => 'Редкий данжевый ресурс тира 2'],
+            ['catalog_key' => 'twilight_essence', 'name' => '🔵 Сумеречная эссенция', 'type' => 'resource', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 0, 'sell_price' => 45, 'description' => 'Ресурс тира 2: падает на локациях и в данже тира 2. Нужен для прокачки крафта до ур. 14'],
+            ['catalog_key' => 'recipe_scroll_hunter_armor', 'name' => 'Свиток: Панцирь охотника', 'type' => 'recipe_scroll', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 600, 'sell_price' => 60, 'description' => 'Расходуется при создании панциря охотника.'],
+            ['catalog_key' => 'recipe_scroll_mana_gloves', 'name' => 'Свиток: Перчатки кристалломанта', 'type' => 'recipe_scroll', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 600, 'sell_price' => 60, 'description' => 'Расходуется при создании перчаток кристалломанта.'],
+            ['catalog_key' => 'recipe_scroll_witch_blade', 'name' => 'Свиток: Клинок ведьмы', 'type' => 'recipe_scroll', 'tier' => 'purple', 'tier_emoji' => '🟣', 'buy_price' => 1200, 'sell_price' => 120, 'description' => 'Расходуется при создании клинка ведьмы. Требует Ядро Ведьмы.'],
             ['catalog_key' => 'recipe_scroll_tempered_will_ring', 'name' => 'Свиток: Кольцо закалённой воли', 'type' => 'recipe_scroll', 'tier' => 'blue', 'tier_emoji' => '🔵', 'buy_price' => 300, 'sell_price' => 30, 'description' => 'Расходуется при создании кольца.'],
         ];
 
@@ -212,12 +302,13 @@ class GameDataSeeder extends Seeder
                 ];
             }
 
-            Item::updateOrCreate(['catalog_key' => $gear['catalog_key']], array_merge($gear, [
+            Item::updateOrCreate(['catalog_key' => $gear['catalog_key']], array_merge([
+                'description' => 'Крафтовая экипировка (+15% к торговой).',
+            ], $gear, [
                 'type' => 'equipment',
                 'equipment_source' => 'crafted',
                 'buy_price' => 0,
                 'sell_price' => 0,
-                'description' => 'Крафтовая экипировка (+15% к торговой).',
             ], $extra));
         }
 
@@ -241,6 +332,27 @@ class GameDataSeeder extends Seeder
             ]));
         }
 
+        foreach ($dungeonGearT2 as $gear) {
+            Item::updateOrCreate(['catalog_key' => $gear['catalog_key']], array_merge($gear, [
+                'type' => 'equipment',
+                'equipment_source' => 'dungeon',
+                'buy_price' => 0,
+                'sell_price' => 0,
+                'set_key' => $gear['set_key'] ?? null,
+                'description' => 'Предмет сета «Паутина Королевы».',
+            ]));
+        }
+
+        foreach ($exchangeGear as $gear) {
+            Item::updateOrCreate(['catalog_key' => $gear['catalog_key']], array_merge($gear, [
+                'type' => 'equipment',
+                'equipment_source' => 'vendor',
+                'buy_price' => 0,
+                'sell_price' => 0,
+                'set_key' => null,
+            ]));
+        }
+
         foreach ($dungeonExtras as $gear) {
             Item::updateOrCreate(['catalog_key' => $gear['catalog_key']], array_merge($gear, [
                 'type' => 'equipment',
@@ -254,8 +366,10 @@ class GameDataSeeder extends Seeder
 
     private function seedMonsters(): void
     {
-        $forest = Location::where('type', 'forest')->first();
-        $field = Location::where('type', 'field')->first();
+        $forest = Location::where('name', 'Тёмный Лес')->first();
+        $field = Location::where('name', 'Золотое Поле')->first();
+        $swamp = Location::where('name', 'Болотные Тропы')->first();
+        $ruins = Location::where('name', 'Древние Руины')->first();
 
         $ore = Item::where('catalog_key', 'iron_ore')->first();
         $wood = Item::where('catalog_key', 'wood')->first();
@@ -266,6 +380,10 @@ class GameDataSeeder extends Seeder
         $seal = Item::where('catalog_key', 'craftsman_seal')->first();
         $sphere = Item::where('catalog_key', 'transformation_sphere')->first();
         $dungeonWeapon = Item::where('catalog_key', 'D-W01')->first();
+        $spiderSilk = Item::where('catalog_key', 'spider_silk')->first();
+        $venomGland = Item::where('catalog_key', 'venom_gland')->first();
+        $essence = Item::where('catalog_key', 'twilight_essence')->first();
+        $dungeonWeaponT2 = Item::where('catalog_key', 'D2-W01')->first();
 
         Monster::updateOrCreate(
             ['name' => 'Дикий Кабан'],
@@ -322,6 +440,97 @@ class GameDataSeeder extends Seeder
                     ['item_id' => $witchCore->id, 'chance' => 100, 'quantity' => 1],
                     ['item_id' => $seal->id, 'chance' => 25, 'quantity' => 2],
                     ['item_id' => $sphere->id, 'chance' => 15, 'quantity' => 1],
+                ],
+            ]
+        );
+
+        Monster::updateOrCreate(
+            ['name' => 'Болотная Пиявка'],
+            [
+                'flavor_text' => 'Присосалась к сапогу и смотрит так, будто это ты её должен.',
+                'hp' => 90, 'attack' => 8, 'defense' => 3, 'tier' => 'normal', 'energy_cost' => 1,
+                'xp_reward' => 40, 'money_reward' => 26, 'location_id' => $swamp->id,
+                'loot_table' => [
+                    ['item_id' => $hide->id, 'chance' => 70, 'quantity' => 1],
+                    ['item_id' => $leather->id, 'chance' => 40, 'quantity' => 1],
+                    ['item_id' => $essence->id, 'chance' => 30, 'quantity' => 1],
+                    ['item_id' => $seal->id, 'chance' => 4, 'quantity' => 1],
+                ],
+            ]
+        );
+
+        Monster::updateOrCreate(
+            ['name' => 'Топяной Ползун'],
+            [
+                'flavor_text' => 'Медленный, мокрый и крайне недовольный твоим вторжением.',
+                'hp' => 110, 'attack' => 9, 'defense' => 4, 'tier' => 'normal', 'energy_cost' => 1,
+                'xp_reward' => 48, 'money_reward' => 30, 'location_id' => $swamp->id,
+                'loot_table' => [
+                    ['item_id' => $hide->id, 'chance' => 65, 'quantity' => 1],
+                    ['item_id' => $crystal->id, 'chance' => 20, 'quantity' => 1],
+                    ['item_id' => $essence->id, 'chance' => 35, 'quantity' => 1],
+                    ['item_id' => $seal->id, 'chance' => 4, 'quantity' => 1],
+                ],
+            ]
+        );
+
+        Monster::updateOrCreate(
+            ['name' => 'Матриарх Трясины'],
+            [
+                'flavor_text' => 'Выводок болотных тварей зовёт её мамой. Очень злой мамой.',
+                'hp' => 200, 'attack' => 13, 'defense' => 5, 'tier' => 'rare', 'energy_cost' => 2,
+                'xp_reward' => 130, 'money_reward' => 70, 'location_id' => $swamp->id,
+                'loot_table' => [
+                    ['item_id' => $hide->id, 'chance' => 100, 'quantity' => 2],
+                    ['item_id' => $crystal->id, 'chance' => 40, 'quantity' => 1],
+                    ['item_id' => $venomGland->id, 'chance' => 15, 'quantity' => 1],
+                    ['item_id' => $sphere->id, 'chance' => 6, 'quantity' => 1],
+                    ['item_id' => $dungeonWeaponT2->id, 'chance' => 8, 'quantity' => 1, 'equipment_quality' => 'random'],
+                ],
+            ]
+        );
+
+        Monster::updateOrCreate(
+            ['name' => 'Болотный Тролль'],
+            [
+                'flavor_text' => 'Регенерирует быстрее, чем ты успеваешь пожалеть о своём решении.',
+                'hp' => 320, 'attack' => 16, 'defense' => 7, 'tier' => 'boss', 'energy_cost' => 5,
+                'xp_reward' => 260, 'money_reward' => 150, 'location_id' => $swamp->id,
+                'loot_table' => [
+                    ['item_id' => $crystal->id, 'chance' => 100, 'quantity' => 2],
+                    ['item_id' => $venomGland->id, 'chance' => 40, 'quantity' => 1],
+                    ['item_id' => $sphere->id, 'chance' => 20, 'quantity' => 1],
+                    ['item_id' => $seal->id, 'chance' => 30, 'quantity' => 2],
+                ],
+            ]
+        );
+
+        Monster::updateOrCreate(
+            ['name' => 'Оживший Доспех'],
+            [
+                'flavor_text' => 'Внутри пусто, но бьёт так, будто очень хочет это компенсировать.',
+                'hp' => 130, 'attack' => 10, 'defense' => 6, 'tier' => 'normal', 'energy_cost' => 1,
+                'xp_reward' => 52, 'money_reward' => 34, 'location_id' => $ruins->id,
+                'loot_table' => [
+                    ['item_id' => $ore->id, 'chance' => 60, 'quantity' => 2],
+                    ['item_id' => $hide->id, 'chance' => 35, 'quantity' => 1],
+                    ['item_id' => $essence->id, 'chance' => 40, 'quantity' => 1],
+                    ['item_id' => $seal->id, 'chance' => 5, 'quantity' => 1],
+                ],
+            ]
+        );
+
+        Monster::updateOrCreate(
+            ['name' => 'Каменный Страж'],
+            [
+                'flavor_text' => 'Сторожит руины уже тысячу лет. Перерыв на обед не предусмотрен.',
+                'hp' => 230, 'attack' => 14, 'defense' => 8, 'tier' => 'rare', 'energy_cost' => 2,
+                'xp_reward' => 145, 'money_reward' => 80, 'location_id' => $ruins->id,
+                'loot_table' => [
+                    ['item_id' => $crystal->id, 'chance' => 60, 'quantity' => 1],
+                    ['item_id' => $spiderSilk->id, 'chance' => 12, 'quantity' => 1],
+                    ['item_id' => $sphere->id, 'chance' => 6, 'quantity' => 1],
+                    ['item_id' => $dungeonWeaponT2->id, 'chance' => 6, 'quantity' => 1, 'equipment_quality' => 'random'],
                 ],
             ]
         );
@@ -403,12 +612,95 @@ class GameDataSeeder extends Seeder
             $defaults['loot_rules'],
             $defaults['resource_pools'],
         );
+
+        $this->seedSpiderDungeon();
+    }
+
+    private function seedSpiderDungeon(): void
+    {
+        $caveLoc = Location::where('name', 'Пещера Арахнидов')->first();
+        $camp = Location::where('name', 'Лагерь Искателей')->first();
+
+        $dungeon = Dungeon::updateOrCreate(
+            ['catalog_key' => 'spider_t2'],
+            [
+                'name' => 'Пещера Арахнидов',
+                'tier' => 2,
+                'set_key' => 'arachnid_web',
+                'item_level' => 14,
+                'min_power' => 80,
+                'location_id' => $caveLoc->id,
+                'return_location_id' => $camp?->id,
+                'description' => '10 этажей, сет «Паутина Королевы», Королева Арахнид на последнем этаже.',
+            ]
+        );
+
+        $weaver = Monster::updateOrCreate(
+            ['name' => 'Пещерный Ткач'],
+            [
+                'flavor_text' => 'Плетёт сеть прямо у тебя за спиной. Невежливо, но эффективно.',
+                'hp' => 140, 'attack' => 11, 'defense' => 5, 'tier' => 'normal', 'energy_cost' => 1,
+                'xp_reward' => 60, 'money_reward' => 36, 'location_id' => $caveLoc->id,
+                'loot_table' => [],
+            ]
+        );
+
+        $broodling = Monster::updateOrCreate(
+            ['name' => 'Ядовитый Выводок'],
+            [
+                'flavor_text' => 'Маленький, шустрый и ядовитый. Как и его сотня братьев.',
+                'hp' => 160, 'attack' => 13, 'defense' => 6, 'tier' => 'normal', 'energy_cost' => 1,
+                'xp_reward' => 68, 'money_reward' => 42, 'location_id' => $caveLoc->id,
+                'loot_table' => [],
+            ]
+        );
+
+        $guardian = Monster::updateOrCreate(
+            ['name' => 'Стражница Кладки'],
+            [
+                'flavor_text' => 'Охраняет яйца Королевы и не намерена обсуждать условия.',
+                'hp' => 260, 'attack' => 17, 'defense' => 8, 'tier' => 'rare', 'energy_cost' => 1,
+                'xp_reward' => 170, 'money_reward' => 90, 'location_id' => $caveLoc->id,
+                'loot_table' => [],
+            ]
+        );
+
+        $queen = Monster::updateOrCreate(
+            ['name' => 'Королева Арахнид'],
+            [
+                'flavor_text' => 'Восемь глаз, восемь ног и ноль терпения к незваным гостям.',
+                'hp' => 460, 'attack' => 22, 'defense' => 10, 'tier' => 'boss', 'energy_cost' => 1,
+                'xp_reward' => 420, 'money_reward' => 220, 'location_id' => $caveLoc->id,
+                'loot_table' => [],
+            ]
+        );
+
+        foreach ([
+            [$weaver, DungeonMonsterRole::Normal],
+            [$broodling, DungeonMonsterRole::Normal],
+            [$guardian, DungeonMonsterRole::Rare],
+            [$queen, DungeonMonsterRole::Boss],
+        ] as [$monster, $role]) {
+            DungeonMonster::updateOrCreate(
+                ['dungeon_id' => $dungeon->id, 'monster_id' => $monster->id],
+                ['role' => $role]
+            );
+        }
+
+        $defaults = app(\App\Services\DungeonConfigService::class)->tierTwoDefaults();
+        app(\App\Services\DungeonConfigService::class)->syncDungeon(
+            $dungeon,
+            $defaults['settings'],
+            $defaults['loot_rules'],
+            $defaults['resource_pools'],
+        );
     }
 
     private function seedMerchants(): void
     {
         $city = Location::where('name', 'Староград')->first();
         $village = Location::where('name', 'Зелёная Деревня')->first();
+        $camp = Location::where('name', 'Лагерь Искателей')->first();
 
         $offers = [
             ['location_id' => $city->id, 'poi_type' => 'material_merchant', 'catalog_key' => 'iron_ore', 'buy_price' => 25],
@@ -421,18 +713,32 @@ class GameDataSeeder extends Seeder
             ['location_id' => $city->id, 'poi_type' => 'armorer', 'catalog_key' => 'V-B01'],
             ['location_id' => $city->id, 'poi_type' => 'guild_master', 'catalog_key' => 'teleport_stone', 'buy_price' => 250],
             ['location_id' => $city->id, 'poi_type' => 'guild_master', 'catalog_key' => 'healing_potion', 'buy_price' => 250],
+            ['location_id' => $city->id, 'poi_type' => 'guild_master', 'catalog_key' => 'greater_healing_potion', 'buy_price' => 500],
             ['location_id' => $city->id, 'poi_type' => 'guild_master', 'catalog_key' => 'dungeon_pass_t1', 'buy_price' => 500],
+            ['location_id' => $city->id, 'poi_type' => 'guild_master', 'catalog_key' => 'dungeon_pass_t2', 'buy_price' => 800],
             ['location_id' => $village->id, 'poi_type' => 'armorer', 'catalog_key' => 'V-W02'],
             ['location_id' => $village->id, 'poi_type' => 'armorer', 'catalog_key' => 'V-A02'],
             ['location_id' => $village->id, 'poi_type' => 'armorer', 'catalog_key' => 'V-P02'],
             ['location_id' => $village->id, 'poi_type' => 'armorer', 'catalog_key' => 'V-H01'],
             ['location_id' => $village->id, 'poi_type' => 'armorer', 'catalog_key' => 'V-C01'],
             ['location_id' => $village->id, 'poi_type' => 'alchemist', 'catalog_key' => 'healing_potion', 'stock' => 2],
+            ['location_id' => $village->id, 'poi_type' => 'alchemist', 'catalog_key' => 'greater_healing_potion', 'buy_price' => 500],
             ['location_id' => $village->id, 'poi_type' => 'alchemist', 'catalog_key' => 'recipe_scroll_tempered_will_ring', 'buy_price' => 300],
+            ['location_id' => $camp->id, 'poi_type' => 'recipe_merchant', 'catalog_key' => 'recipe_scroll_hunter_armor', 'buy_price' => 600],
+            ['location_id' => $camp->id, 'poi_type' => 'recipe_merchant', 'catalog_key' => 'recipe_scroll_mana_gloves', 'buy_price' => 600],
+            ['location_id' => $camp->id, 'poi_type' => 'recipe_merchant', 'catalog_key' => 'recipe_scroll_witch_blade', 'buy_price' => 1200],
+            ['location_id' => $camp->id, 'poi_type' => 'recipe_merchant', 'catalog_key' => 'greater_healing_potion', 'buy_price' => 500],
+            ['location_id' => $camp->id, 'poi_type' => 'recipe_merchant', 'catalog_key' => 'dungeon_pass_t2', 'buy_price' => 800],
+            ['location_id' => $camp->id, 'poi_type' => 'seal_trader', 'catalog_key' => 'seal_cloak', 'buy_price' => 0, 'cost_item_key' => 'explorer_seal', 'cost_quantity' => 1],
+            ['location_id' => $camp->id, 'poi_type' => 'seal_trader', 'catalog_key' => 'seal_amulet', 'buy_price' => 0, 'cost_item_key' => 'explorer_seal', 'cost_quantity' => 2],
         ];
 
         foreach ($offers as $offer) {
             $item = Item::where('catalog_key', $offer['catalog_key'])->first();
+            $costItem = isset($offer['cost_item_key'])
+                ? Item::where('catalog_key', $offer['cost_item_key'])->first()
+                : null;
+
             MerchantOffer::updateOrCreate(
                 [
                     'location_id' => $offer['location_id'],
@@ -441,6 +747,8 @@ class GameDataSeeder extends Seeder
                 ],
                 [
                     'buy_price' => $offer['buy_price'] ?? $item->buy_price ?: 0,
+                    'cost_item_id' => $costItem?->id,
+                    'cost_quantity' => $offer['cost_quantity'] ?? 1,
                     'stock' => $offer['stock'] ?? null,
                 ]
             );
@@ -517,9 +825,37 @@ class GameDataSeeder extends Seeder
             [
                 'catalog_key' => 'vampire_strike',
                 'name' => 'Удар вампира',
-                'description' => 'Каждая третья атака восстанавливает 50% нанесённого урона.',
+                'description' => 'Каждая третья атака: +3 к урону и восстанавливает 40% нанесённого урона.',
                 'min_learn_level' => 10,
                 'teach_price' => 1200,
+            ],
+            [
+                'catalog_key' => 'stone_skin',
+                'name' => 'Каменная кожа',
+                'description' => 'Каждый третий удар противника наносит на 20 брони меньше урона.',
+                'min_learn_level' => 10,
+                'teach_price' => 1000,
+            ],
+            [
+                'catalog_key' => 'find_the_gap',
+                'name' => 'Поиск бреши',
+                'description' => 'Каждый второй удар срезает 2 брони. Когда броня цели падает до нуля, она получает на 25% больше урона.',
+                'min_learn_level' => 10,
+                'teach_price' => 1000,
+            ],
+            [
+                'catalog_key' => 'second_wind',
+                'name' => 'Второе дыхание',
+                'description' => 'Когда HP падает до 10% и ниже — один раз за бой восстанавливает 20% от макс. HP.',
+                'min_learn_level' => 15,
+                'teach_price' => 1600,
+            ],
+            [
+                'catalog_key' => 'executioner',
+                'name' => 'Палач',
+                'description' => 'Пока HP противника ниже 30%, ваши атаки наносят на 50% больше урона.',
+                'min_learn_level' => 15,
+                'teach_price' => 1600,
             ],
         ];
 
@@ -626,5 +962,71 @@ class GameDataSeeder extends Seeder
                 ],
             ]
         );
+
+        $hide = Item::where('catalog_key', 'monster_hide')->first();
+        $crystal = Item::where('catalog_key', 'mana_crystal')->first();
+        $witchCore = Item::where('catalog_key', 'witch_core')->first();
+        $essence = Item::where('catalog_key', 'twilight_essence')->first();
+
+        $t2Recipes = [
+            [
+                'name' => 'Панцирь охотника',
+                'result_key' => 'C-A02',
+                'scroll_key' => 'recipe_scroll_hunter_armor',
+                'quality' => 'white',
+                'energy_cost' => 4,
+                'ingredients' => [
+                    ['item' => $hide, 'quantity' => 4],
+                    ['item' => $essence, 'quantity' => 2],
+                ],
+            ],
+            [
+                'name' => 'Перчатки кристалломанта',
+                'result_key' => 'C-G02',
+                'scroll_key' => 'recipe_scroll_mana_gloves',
+                'quality' => 'white',
+                'energy_cost' => 4,
+                'ingredients' => [
+                    ['item' => $crystal, 'quantity' => 3],
+                    ['item' => $hide, 'quantity' => 2],
+                ],
+            ],
+            [
+                'name' => 'Клинок ведьмы',
+                'result_key' => 'C-W03',
+                'scroll_key' => 'recipe_scroll_witch_blade',
+                'quality' => 'white',
+                'energy_cost' => 5,
+                'ingredients' => [
+                    ['item' => $witchCore, 'quantity' => 1],
+                    ['item' => $crystal, 'quantity' => 2],
+                    ['item' => $essence, 'quantity' => 2],
+                ],
+            ],
+        ];
+
+        foreach ($t2Recipes as $recipe) {
+            $resultItem = Item::where('catalog_key', $recipe['result_key'])->first();
+            $scrollItem = Item::where('catalog_key', $recipe['scroll_key'])->first();
+
+            CraftingRecipe::updateOrCreate(
+                ['name' => $recipe['name']],
+                [
+                    'result_item_id' => $resultItem->id,
+                    'result_quantity' => 1,
+                    'energy_cost' => $recipe['energy_cost'],
+                    'required_profession' => 'blacksmith',
+                    'category' => 'rare',
+                    'recipe_scroll_item_id' => $scrollItem->id,
+                    'fixed_result_quality' => $recipe['quality'],
+                    'upgradable' => false,
+                    'quality_upgradable' => true,
+                    'ingredients' => collect($recipe['ingredients'])->map(fn ($ing) => [
+                        'item_id' => $ing['item']->id,
+                        'quantity' => $ing['quantity'],
+                    ])->all(),
+                ]
+            );
+        }
     }
 }

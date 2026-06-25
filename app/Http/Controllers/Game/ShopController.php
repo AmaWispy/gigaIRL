@@ -20,7 +20,7 @@ class ShopController extends Controller
         $character = $request->user()->character;
         $offers = $merchantService->getOffersForPoi($poiType, $character->current_location_id, $character);
 
-        if (empty($offers) && ! in_array($poiType, ['material_merchant', 'armorer', 'alchemist', 'guild_master'])) {
+        if (empty($offers) && ! in_array($poiType, ['material_merchant', 'armorer', 'alchemist', 'guild_master', 'recipe_merchant', 'seal_trader'])) {
             abort(404);
         }
 
@@ -82,6 +82,8 @@ class ShopController extends Controller
             'armorer' => 'Оружейник',
             'alchemist' => 'Алхимик',
             'guild_master' => 'Гильдмастер',
+            'recipe_merchant' => 'Лавка рецептов',
+            'seal_trader' => 'Хранитель печатей',
             default => 'Лавка',
         };
     }

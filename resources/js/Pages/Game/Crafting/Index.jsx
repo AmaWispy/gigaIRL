@@ -28,6 +28,7 @@ export default function CraftingIndex({
 }) {
     const professionForm = useForm({ profession: 'blacksmith' });
     const [recipeTab, setRecipeTab] = useState('basic');
+    const [section, setSection] = useState('recipes');
 
     const recipesByTab = {
         basic: basicRecipes,
@@ -75,7 +76,32 @@ export default function CraftingIndex({
                         </div>
                     )}
 
-                    <div className="mb-6">
+                    <div className="mb-6 flex gap-2 border-b">
+                        {[
+                            { id: 'recipes', label: 'Рецепты' },
+                            { id: 'upgrades', label: 'Улучшения', count: upgradeOptions.length },
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setSection(tab.id)}
+                                className={`px-4 py-2 text-sm font-semibold ${
+                                    section === tab.id
+                                        ? 'border-b-2 border-indigo-600 text-indigo-600'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                {tab.label}
+                                {tab.count > 0 && (
+                                    <span className="ml-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                                        {tab.count}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className={`mb-6 ${section === 'recipes' ? '' : 'hidden'}`}>
                         <div className="mb-4 flex gap-2 border-b">
                             {recipeTabs.map((tab) => {
                                 const count = recipesByTab[tab.id]?.length ?? 0;
@@ -115,19 +141,20 @@ export default function CraftingIndex({
                         )}
                     </div>
 
-                    {upgradeOptions.length > 0 && (
-                        <div className="mt-10">
-                            <h3 className="mb-4 text-lg font-semibold">Улучшение экипировки</h3>
-                            <p className="mb-4 text-sm text-gray-500">
-                                Снимите предмет перед улучшением. Крафт — ресурсы + печати; данж — сферы.
-                            </p>
+                    <div className={section === 'upgrades' ? '' : 'hidden'}>
+                        <p className="mb-4 text-sm text-gray-500">
+                            Снимать предмет не нужно. Крафт — печать ремесленника + ресурсы тира 2 (сразу до ур. 14); данж — сферы становления.
+                        </p>
+                        {upgradeOptions.length === 0 ? (
+                            <p className="text-sm text-gray-500">Нет вещей для улучшения. Крафтовые и данжевые предметы можно улучшать здесь.</p>
+                        ) : (
                             <div className="grid gap-4 lg:grid-cols-2">
                                 {upgradeOptions.map((option) => (
                                     <UpgradeCard key={option.inventory_item_id} option={option} />
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
         </GameLayout>
@@ -161,13 +188,16 @@ function RecipeCard({ recipe }) {
     const form = useForm({});
 
     return (
-        <div className={`rounded-lg border p-4 shadow-sm ${recipe.can_craft ? 'bg-white' : 'bg-gray-50 opacity-75'}`}>
+        <div className={`rounded-lg border border-blue-300 p-4 shadow-sm ${recipe.can_craft ? 'bg-blue-50' : 'bg-blue-50/40 opacity-75'}`}>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
-                    <h4 className="font-semibold">{recipe.name}</h4>
+                    <h4 className="font-semibold text-blue-800">{recipe.name}</h4>
                     <p className="text-sm text-gray-600">
                         Результат: {recipe.result.name} x{recipe.result.quantity}
                     </p>
+                    {recipe.result.description && (
+                        <p className="mt-0.5 text-xs italic text-gray-500">{recipe.result.description}</p>
+                    )}
                     <EquipmentStatsPreview preview={recipe.result.equipment_preview} className="mt-1" />
                     {!recipe.upgradable && (
                         <p className="mt-1 text-xs text-blue-700">Не улучшается</p>
@@ -218,39 +248,86 @@ function UpgradeCard({ option }) {
                 <p className="text-sm text-gray-600">
                     {option.quality_label} · ур. {option.equipment_level} · {sourceLabel}
                 </p>
-                {option.stats && (
-                    <p className="text-xs text-gray-500">
-                        БСП {option.stats.bsp} · +{option.stats.strength} урон · +{option.stats.defense} броня
-                    </p>
-                )}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
                 {option.actions.map((action) => (
-                    <button
-                        key={action.type}
-                        onClick={() => router.post(
-                            route('crafting.upgrade', option.inventory_item_id),
-                            { action: action.type },
-                            { preserveScroll: true },
+                    <div key={action.type} className="rounded border border-slate-200 bg-slate-50 p-3">
+                        <p className="mb-1 text-xs font-medium text-gray-600">
+                            {action.target_quality_label
+                                ? `${option.quality_label} → ${action.target_quality_label}`
+                                : `ур. ${option.equipment_level} → ${action.target_level}`}
+                        </p>
+                        <div className="mb-2 space-y-0.5 text-xs">
+                            <StatDiff label="Урон" before={option.stats?.strength} after={action.after_stats?.strength} />
+                            <StatDiff label="Броня" before={option.stats?.defense} after={action.after_stats?.defense} />
+                            <StatDiff label="HP" before={option.stats?.max_hp} after={action.after_stats?.max_hp} />
+                        </div>
+                        <RequirementList requirements={action.requirements} />
+                        <button
+                            onClick={() => router.post(
+                                route('crafting.upgrade', option.inventory_item_id),
+                                { action: action.type },
+                                { preserveScroll: true },
+                            )}
+                            disabled={action.affordable === false}
+                            className="mt-1 rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {action.label}
+                        </button>
+                        {action.affordable === false && (
+                            <p className="mt-1 text-[11px] text-red-600">Не хватает ресурсов</p>
                         )}
-                        className="rounded bg-slate-700 px-3 py-1.5 text-xs text-white hover:bg-slate-800"
-                        title={formatUpgradeCost(action.cost)}
-                    >
-                        {action.label}
-                    </button>
+                    </div>
                 ))}
             </div>
         </div>
     );
 }
 
-function formatUpgradeCost(cost) {
-    const parts = [];
-    if (cost.craftsman_seal) parts.push(`печать ×${cost.craftsman_seal}`);
-    if (cost.transformation_sphere) parts.push(`сфера ×${cost.transformation_sphere}`);
-    if (cost.energy) parts.push(`⚡ ${cost.energy}`);
-    if (cost.ingredients?.length) {
-        parts.push(cost.ingredients.map((i) => `${i.name} ×${i.quantity}`).join(', '));
+function StatDiff({ label, before, after }) {
+    const b = before ?? 0;
+    const a = after ?? 0;
+    const changed = a !== b;
+
+    if (b === 0 && a === 0) {
+        return null;
     }
-    return parts.join(' · ');
+
+    return (
+        <div className="flex items-center gap-1 text-gray-600">
+            <span className="w-12 text-gray-500">{label}</span>
+            <span>{b}</span>
+            {changed && (
+                <>
+                    <span className="text-gray-400">→</span>
+                    <span className="font-semibold text-emerald-600">{a}</span>
+                    <span className="text-emerald-600">(+{a - b})</span>
+                </>
+            )}
+        </div>
+    );
+}
+
+function RequirementList({ requirements = [] }) {
+    if (!requirements.length) {
+        return null;
+    }
+
+    return (
+        <ul className="mb-1 space-y-0.5 text-[11px]">
+            {requirements.map((req, idx) => (
+                <li
+                    key={`${req.name}-${idx}`}
+                    className={req.has_enough ? 'text-gray-500' : 'text-red-600'}
+                >
+                    {req.is_energy ? '⚡ ' : ''}{req.name}: {req.owned}/{req.required}
+                    {req.has_enough ? (
+                        <span className="ml-1 text-green-600">✓</span>
+                    ) : (
+                        <span className="ml-1">(не хватает {req.required - req.owned})</span>
+                    )}
+                </li>
+            ))}
+        </ul>
+    );
 }

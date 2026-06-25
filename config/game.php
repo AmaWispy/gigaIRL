@@ -44,6 +44,17 @@ return [
         'resource_cache_energy' => 2,
         'rare_monster_energy' => 3,
         'boss_energy' => 5,
+
+        // Относительные веса появления действий при осмотре.
+        // Чем больше число, тем чаще действие выпадает. Босс и редкий моб — редкие.
+        'action_weights' => [
+            'monster' => 35,
+            'gather' => 30,
+            'treasure' => 12,
+            'resource_cache' => 12,
+            'rare_monster' => 8,
+            'boss' => 3,
+        ],
     ],
 
     'combat' => [

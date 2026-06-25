@@ -186,6 +186,10 @@ function formatRoundLog(round, monsterName) {
         return `Возмездие${skills} — ${round.damage} урона по ${monsterName}`;
     }
 
+    if (round.action === 'second_wind') {
+        return `Второе дыхание${skills} — +${round.heal} HP`;
+    }
+
     if (round.actor === 'character' && round.heal > 0) {
         return `${actor} — атака (${round.damage} урона, +${round.heal} HP${blocked})${skills}`;
     }

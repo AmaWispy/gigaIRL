@@ -190,6 +190,7 @@ class CraftingService
                 'name' => $recipe->resultItem->name,
                 'quantity' => $recipe->result_quantity,
                 'type' => $recipe->resultItem->type,
+                'description' => $recipe->resultItem->description,
                 'equipment_preview' => $this->equipmentService->previewCraftResult($recipe->resultItem, $recipe),
             ],
             'ingredients' => $this->formatIngredients($character, $recipe),

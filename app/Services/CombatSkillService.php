@@ -19,6 +19,7 @@ class CombatSkillService
      *     blocked: int,
      *     heal: int,
      *     skip_monster_turn: bool,
+     *     defense_reduction: int,
      *     labels: list<string>,
      * }
      */
@@ -35,6 +36,7 @@ class CombatSkillService
             ->count() + 1;
 
         $damageMultiplier = 1.0;
+        $bonusDamage = 0;
         $ignoreArmor = false;
         $heal = 0;
         $skipMonsterTurn = false;
@@ -58,6 +60,14 @@ class CombatSkillService
                 $labels[] = $skillName;
             }
 
+            if (($effect['bonus_damage'] ?? 0) > 0) {
+                $bonusDamage += (int) $effect['bonus_damage'];
+
+                if (! in_array($skillName, $labels, true)) {
+                    $labels[] = $skillName;
+                }
+            }
+
             if ($effect['ignore_armor'] ?? false) {
                 $ignoreArmor = true;
 
@@ -75,8 +85,45 @@ class CombatSkillService
             }
         }
 
-        $defense = $ignoreArmor ? 0 : $monster->defense;
-        $armorResult = $this->combatDamageService->resolve($attackPower, $defense, $ignoreArmor);
+        // Палач: пока цель ниже порога HP — увеличиваем урон.
+        if (in_array('executioner', $skillKeys, true)) {
+            $effect = config('skills.effects.executioner');
+            $maxMonsterHp = max(1, (int) $monster->hp);
+            $threshold = (float) ($effect['hp_threshold_percent'] ?? 30) / 100;
+
+            if ($combat->monster_hp > 0 && $combat->monster_hp / $maxMonsterHp < $threshold) {
+                $damageMultiplier *= 1 + ((float) ($effect['damage_bonus_percent'] ?? 50) / 100);
+                $labels[] = $this->skillLabel('executioner');
+            }
+        }
+
+        // Поиск бреши: накопительный срез брони + бонус при пробитой броне.
+        $defenseReduction = (int) ($combat->combat_state['defense_reduction'] ?? 0);
+        $hasFindGap = in_array('find_the_gap', $skillKeys, true);
+
+        if ($hasFindGap) {
+            $effect = config('skills.effects.find_the_gap');
+            $n = (int) ($effect['n'] ?? 2);
+
+            if ($n > 0 && $attackNumber % $n === 0) {
+                $defenseReduction += (int) ($effect['armor_shred'] ?? 2);
+                $labels[] = $this->skillLabel('find_the_gap');
+            }
+        }
+
+        $effectiveDefense = $ignoreArmor ? 0 : ($monster->defense - $defenseReduction);
+
+        if ($hasFindGap && ! $ignoreArmor && $effectiveDefense <= 0) {
+            $effect = config('skills.effects.find_the_gap');
+            $damageMultiplier *= 1 + ((float) ($effect['broken_armor_bonus_percent'] ?? 25) / 100);
+
+            if (! in_array($this->skillLabel('find_the_gap'), $labels, true)) {
+                $labels[] = $this->skillLabel('find_the_gap');
+            }
+        }
+
+        $defenseForResolve = $ignoreArmor ? 0 : max(0, $effectiveDefense);
+        $armorResult = $this->combatDamageService->resolve($attackPower + $bonusDamage, $defenseForResolve, $ignoreArmor);
         $baseDamage = $armorResult['damage'];
         $blocked = $armorResult['blocked'];
         $damage = max(1, (int) floor($baseDamage * $damageMultiplier));
@@ -103,8 +150,77 @@ class CombatSkillService
             'blocked' => $blocked,
             'heal' => $heal,
             'skip_monster_turn' => $skipMonsterTurn,
+            'defense_reduction' => $defenseReduction,
             'labels' => $labels,
         ];
+    }
+
+    /**
+     * Каменная кожа: на каждой N-й атаке противника прибавляет броню для смягчения урона.
+     *
+     * @return array{bonus_defense: int, labels: list<string>}
+     */
+    public function resolveIncomingMitigation(Combat $combat, Character $character): array
+    {
+        $skillKeys = $this->skillService->getEquippedSkillKeys($character);
+
+        if (! in_array('stone_skin', $skillKeys, true)) {
+            return ['bonus_defense' => 0, 'labels' => []];
+        }
+
+        $effect = config('skills.effects.stone_skin');
+        $attackNumber = $combat->rounds()
+            ->where('actor', 'monster')
+            ->where('action', 'attack')
+            ->count() + 1;
+        $n = (int) ($effect['n'] ?? 3);
+
+        if ($n > 0 && $attackNumber % $n === 0) {
+            return [
+                'bonus_defense' => (int) ($effect['bonus_defense'] ?? 20),
+                'labels' => [$this->skillLabel('stone_skin')],
+            ];
+        }
+
+        return ['bonus_defense' => 0, 'labels' => []];
+    }
+
+    /**
+     * Второе дыхание: разовое лечение при низком HP.
+     *
+     * @return array{heal: int, used: bool, labels: list<string>}
+     */
+    public function resolveSecondWind(Combat $combat, Character $character, int $currentHp, int $maxHp): array
+    {
+        $skillKeys = $this->skillService->getEquippedSkillKeys($character);
+
+        if (! in_array('second_wind', $skillKeys, true)) {
+            return ['heal' => 0, 'used' => false, 'labels' => []];
+        }
+
+        if ($combat->combat_state['second_wind_used'] ?? false) {
+            return ['heal' => 0, 'used' => false, 'labels' => []];
+        }
+
+        if ($currentHp <= 0 || $maxHp <= 0) {
+            return ['heal' => 0, 'used' => false, 'labels' => []];
+        }
+
+        $effect = config('skills.effects.second_wind');
+        $threshold = (float) ($effect['hp_threshold_percent'] ?? 10) / 100;
+
+        if ($currentHp / $maxHp > $threshold) {
+            return ['heal' => 0, 'used' => false, 'labels' => []];
+        }
+
+        $heal = (int) floor($maxHp * ((float) ($effect['heal_percent'] ?? 20) / 100));
+        $heal = min($heal, $maxHp - $currentHp);
+
+        if ($heal <= 0) {
+            return ['heal' => 0, 'used' => false, 'labels' => []];
+        }
+
+        return ['heal' => $heal, 'used' => true, 'labels' => [$this->skillLabel('second_wind')]];
     }
 
     /**
@@ -171,6 +287,10 @@ class CombatSkillService
             'cleaving_strike' => 'Разрубающий удар',
             'stunning_strike' => 'Оглушающий удар',
             'vampire_strike' => 'Удар вампира',
+            'stone_skin' => 'Каменная кожа',
+            'find_the_gap' => 'Поиск бреши',
+            'second_wind' => 'Второе дыхание',
+            'executioner' => 'Палач',
             default => $catalogKey,
         };
     }

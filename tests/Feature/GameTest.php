@@ -156,8 +156,12 @@ test('look around generates 2 to 4 random actions that can repeat', function () 
     $explorationService = app(\App\Services\ExplorationService::class);
     $session = $explorationService->lookAround($user->character->fresh());
 
-    expect($session->actions->count())->toBeGreaterThanOrEqual(config('game.exploration.actions_min'));
-    expect($session->actions->count())->toBeLessThanOrEqual(config('game.exploration.actions_max'));
+    $rolledActions = $session->actions
+        ->reject(fn ($action) => ($action->action_type->value ?? $action->action_type) === \App\Enums\ExplorationActionType::DungeonEntrance->value)
+        ->count();
+
+    expect($rolledActions)->toBeGreaterThanOrEqual(config('game.exploration.actions_min'));
+    expect($rolledActions)->toBeLessThanOrEqual(config('game.exploration.actions_max'));
 
     $sawDuplicates = false;
 
@@ -240,8 +244,30 @@ test('blacksmith has crafting recipes for all equipment slots', function () {
     $this->seed(\Database\Seeders\GameDataSeeder::class);
 
     expect(\App\Models\CraftingRecipe::where('category', 'basic')->count())->toBe(7);
-    expect(\App\Models\CraftingRecipe::where('category', 'rare')->count())->toBe(1);
-    expect(\App\Models\Item::where('equipment_source', 'crafted')->count())->toBe(8);
+    expect(\App\Models\CraftingRecipe::where('category', 'rare')->count())->toBe(4);
+    expect(\App\Models\Item::where('equipment_source', 'crafted')->count())->toBe(11);
+});
+
+test('blacksmith can craft helmet recipe', function () {
+    $user = createUserWithCharacter();
+    $user->character->update(['profession' => 'blacksmith', 'energy' => 20]);
+
+    $leather = \App\Models\Item::where('catalog_key', 'leather')->first();
+    $ironOre = \App\Models\Item::where('catalog_key', 'iron_ore')->first();
+    $recipe = \App\Models\CraftingRecipe::where('name', 'Кожаный шлем (крафт)')->first();
+
+    $inventory = app(\App\Services\InventoryService::class);
+    $inventory->addItem($user->character, $leather, 10);
+    $inventory->addItem($user->character, $ironOre, 10);
+
+    $this->actingAs($user)
+        ->post(route('crafting.craft', $recipe))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($user->character->fresh()->inventoryItems()
+        ->whereHas('item', fn ($q) => $q->where('catalog_key', 'C-H01'))
+        ->exists())->toBeTrue();
 });
 
 test('rare ring recipe requires scroll and crafts blue plus two strength', function () {
@@ -375,8 +401,8 @@ test('dungeon gameplay settings are stored in database', function () {
 
     expect($dungeon->entry_energy)->toBe(10);
     expect($dungeon->floors_total)->toBe(10);
-    expect($dungeon->lootChance('boss', 'set_equipment'))->toBe(35);
-    expect($dungeon->lootChance('boss', 'set_equipment_extra'))->toBe(25);
+    expect($dungeon->lootChance('boss', 'set_equipment'))->toBe(60);
+    expect($dungeon->lootChance('boss', 'set_equipment_extra'))->toBe(40);
     expect($dungeon->resourceItemsForPool('rare')->pluck('catalog_key')->all())
         ->toEqual(['obsidian_shard', 'rune_dust']);
     expect($dungeon->resourceItemsForPool('common')->pluck('catalog_key')->all())
@@ -456,8 +482,8 @@ test('equipped armor increases effective max hp', function () {
 
     $user->character->refresh();
 
-    expect($characterService->getEffectiveMaxHp($user->character))->toBe(32);
-    expect($user->character->hp)->toBe(32);
+    expect($characterService->getEffectiveMaxHp($user->character))->toBe(33);
+    expect($user->character->hp)->toBe(33);
 });
 
 test('equipping armor does not heal damaged character', function () {
@@ -477,14 +503,14 @@ test('equipping armor does not heal damaged character', function () {
     $inventoryService->equip($user->character->fresh(), $inventoryItem);
     $user->character->refresh();
 
-    expect($characterService->getEffectiveMaxHp($user->character))->toBe(32);
+    expect($characterService->getEffectiveMaxHp($user->character))->toBe(33);
     expect($user->character->hp)->toBe(20);
 
     $inventoryService->unequip($user->character->fresh(), 'armor');
     $inventoryService->equip($user->character->fresh(), $inventoryItem->fresh());
     $user->character->refresh();
 
-    expect($characterService->getEffectiveMaxHp($user->character))->toBe(32);
+    expect($characterService->getEffectiveMaxHp($user->character))->toBe(33);
     expect($user->character->hp)->toBe(20);
 });
 
@@ -759,7 +785,7 @@ test('skill trainer teaches combat skills in city', function () {
     $this->actingAs($user)->post(route('world.skills.learn', $skill))->assertRedirect();
 
     expect(app(\App\Services\SkillService::class)->hasLearned($user->character->fresh(), $skill))->toBeTrue();
-    expect(\App\Models\Skill::whereNotNull('catalog_key')->count())->toBe(6);
+    expect(\App\Models\Skill::whereNotNull('catalog_key')->count())->toBe(10);
 });
 
 test('character can equip one skill before level 10', function () {
@@ -818,6 +844,97 @@ test('retribution reflects damage on fifth monster attack', function () {
 
     expect($retribution)->not->toBeNull();
     expect($retribution->damage)->toBe(6);
+});
+
+test('vampire strike adds flat damage and heals forty percent every third attack', function () {
+    $user = createUserWithCharacter();
+    $boar = \App\Models\Monster::where('name', 'Дикий Кабан')->first();
+    $boar->update(['hp' => 500, 'defense' => 0]);
+
+    $user->character->update(['hp' => 200, 'max_hp' => 200, 'level' => 10]);
+
+    $characterSkill = learnSkill($user->character, 'vampire_strike');
+    app(\App\Services\SkillService::class)->equip($user->character->fresh(), $characterSkill);
+
+    $combat = app(\App\Services\CombatService::class)->startCombat($user->character->fresh(), $boar);
+    $characterAttacks = $combat->rounds->where('actor', 'character')->where('action', 'attack')->values();
+
+    $base = $characterAttacks[0]->damage;
+    $thirdDamage = $characterAttacks[2]->damage;
+
+    expect($thirdDamage)->toBe($base + 3);
+    expect($characterAttacks[2]->heal)->toBe((int) floor($thirdDamage * 0.4));
+    expect($characterAttacks[0]->heal)->toBe(0);
+});
+
+test('executioner increases damage below thirty percent enemy hp', function () {
+    $user = createUserWithCharacter();
+    $boar = \App\Models\Monster::where('name', 'Дикий Кабан')->first();
+    $boar->update(['hp' => 100, 'attack' => 0, 'defense' => 0]);
+
+    $user->character->update(['hp' => 200, 'max_hp' => 200, 'level' => 15, 'strength' => 10]);
+
+    $characterSkill = learnSkill($user->character, 'executioner');
+    app(\App\Services\SkillService::class)->equip($user->character->fresh(), $characterSkill);
+
+    $combat = app(\App\Services\CombatService::class)->startCombat($user->character->fresh(), $boar);
+    $attacks = $combat->rounds->where('actor', 'character')->where('action', 'attack')->values();
+
+    expect($attacks->pluck('damage')->min())->toBe(10);
+    expect($attacks->pluck('damage')->max())->toBe(15);
+});
+
+test('find the gap shreds armor and breaks it for bonus damage', function () {
+    $user = createUserWithCharacter();
+    $boar = \App\Models\Monster::where('name', 'Дикий Кабан')->first();
+    $boar->update(['hp' => 5000, 'attack' => 0, 'defense' => 4]);
+
+    $user->character->update(['hp' => 500, 'max_hp' => 500, 'level' => 10, 'strength' => 100]);
+
+    $characterSkill = learnSkill($user->character, 'find_the_gap');
+    app(\App\Services\SkillService::class)->equip($user->character->fresh(), $characterSkill);
+
+    $combat = app(\App\Services\CombatService::class)->startCombat($user->character->fresh(), $boar);
+    $attacks = $combat->rounds->where('actor', 'character')->where('action', 'attack')->values();
+
+    expect($attacks[0]->damage)->toBe(82);
+    expect($attacks[1]->damage)->toBe(90);
+    expect($attacks[3]->damage)->toBe(125);
+});
+
+test('stone skin reduces every third incoming hit', function () {
+    $user = createUserWithCharacter();
+    $boar = \App\Models\Monster::where('name', 'Дикий Кабан')->first();
+    $boar->update(['hp' => 5000, 'attack' => 50, 'defense' => 0]);
+
+    $user->character->update(['hp' => 5000, 'max_hp' => 5000, 'level' => 10, 'strength' => 1, 'defense' => 1]);
+
+    $characterSkill = learnSkill($user->character, 'stone_skin');
+    app(\App\Services\SkillService::class)->equip($user->character->fresh(), $characterSkill);
+
+    $combat = app(\App\Services\CombatService::class)->startCombat($user->character->fresh(), $boar);
+    $monsterAttacks = $combat->rounds->where('actor', 'monster')->where('action', 'attack')->values();
+
+    expect($monsterAttacks[2]->damage)->toBeLessThan($monsterAttacks[0]->damage);
+    expect($monsterAttacks[2]->damage)->toBe(29);
+    expect($monsterAttacks[0]->damage)->toBe(47);
+});
+
+test('second wind heals once when hp drops low', function () {
+    $user = createUserWithCharacter();
+    $boar = \App\Models\Monster::where('name', 'Дикий Кабан')->first();
+    $boar->update(['hp' => 50, 'attack' => 95, 'defense' => 0]);
+
+    $user->character->update(['hp' => 100, 'max_hp' => 100, 'level' => 15, 'strength' => 1, 'defense' => 0]);
+
+    $characterSkill = learnSkill($user->character, 'second_wind');
+    app(\App\Services\SkillService::class)->equip($user->character->fresh(), $characterSkill);
+
+    $combat = app(\App\Services\CombatService::class)->startCombat($user->character->fresh(), $boar);
+    $secondWind = $combat->rounds->where('action', 'second_wind')->values();
+
+    expect($secondWind)->toHaveCount(1);
+    expect($secondWind[0]->heal)->toBe(20);
 });
 
 test('dungeon death returns to city and closes run', function () {
@@ -928,4 +1045,211 @@ test('healing potion restores hp during dungeon run', function () {
     $run->refresh();
     expect($run->character_hp)->toBe(25);
     expect($user->character->fresh()->inventoryItems()->where('item_id', $potion->id)->sum('quantity'))->toBe(1);
+});
+
+test('seekers camp is reachable from ancient ruins and sells the tier two pass and recipes', function () {
+    $camp = \App\Models\Location::where('name', 'Лагерь Искателей')->first();
+    $ruins = \App\Models\Location::where('name', 'Древние Руины')->first();
+
+    expect($camp)->not->toBeNull();
+    expect($camp->is_safe)->toBeTrue();
+
+    $link = \App\Models\LocationConnection::where('from_location_id', $ruins->id)
+        ->where('to_location_id', $camp->id)
+        ->first();
+    expect($link)->not->toBeNull();
+
+    $passOffer = \App\Models\MerchantOffer::where('location_id', $camp->id)
+        ->where('poi_type', 'recipe_merchant')
+        ->whereHas('item', fn ($q) => $q->where('catalog_key', 'dungeon_pass_t2'))
+        ->first();
+    expect($passOffer)->not->toBeNull();
+    expect($passOffer->buy_price)->toBe(800);
+
+    $witchRecipe = \App\Models\MerchantOffer::where('location_id', $camp->id)
+        ->where('poi_type', 'recipe_merchant')
+        ->whereHas('item', fn ($q) => $q->where('catalog_key', 'recipe_scroll_witch_blade'))
+        ->first();
+    expect($witchRecipe)->not->toBeNull();
+});
+
+test('seal trader exchanges explorer seals for blue cloak and amulet', function () {
+    $user = createUserWithCharacter();
+    $camp = \App\Models\Location::where('name', 'Лагерь Искателей')->first();
+    $user->character->update(['current_location_id' => $camp->id]);
+
+    $seal = \App\Models\Item::where('catalog_key', 'explorer_seal')->first();
+    app(\App\Services\InventoryService::class)->addItem($user->character, $seal, 3);
+
+    $cloakOffer = \App\Models\MerchantOffer::where('location_id', $camp->id)
+        ->where('poi_type', 'seal_trader')
+        ->whereHas('item', fn ($q) => $q->where('catalog_key', 'seal_cloak'))
+        ->first();
+    $amuletOffer = \App\Models\MerchantOffer::where('location_id', $camp->id)
+        ->where('poi_type', 'seal_trader')
+        ->whereHas('item', fn ($q) => $q->where('catalog_key', 'seal_amulet'))
+        ->first();
+
+    $this->actingAs($user)->post(route('world.shop.buy', $cloakOffer))->assertRedirect();
+    $this->actingAs($user)->post(route('world.shop.buy', $amuletOffer))->assertRedirect();
+
+    expect($user->character->fresh()->inventoryItems()->where('item_id', $seal->id)->sum('quantity'))->toBe(0);
+
+    $cloak = \App\Models\Item::where('catalog_key', 'seal_cloak')->first();
+    $cloakInv = $user->character->fresh()->inventoryItems()->where('item_id', $cloak->id)->first();
+    expect($cloakInv)->not->toBeNull();
+    expect($cloakInv->quality)->toBe('blue');
+    expect(app(\App\Services\EquipmentService::class)->computeStatsForInventoryItem($cloakInv)['max_hp'])->toBe(15);
+
+    $amulet = \App\Models\Item::where('catalog_key', 'seal_amulet')->first();
+    $amuletInv = $user->character->fresh()->inventoryItems()->where('item_id', $amulet->id)->first();
+    expect($amuletInv)->not->toBeNull();
+    $amuletStats = app(\App\Services\EquipmentService::class)->computeStatsForInventoryItem($amuletInv);
+    expect($amuletStats['strength'])->toBe(3);
+    expect($amuletStats['max_hp'])->toBe(3);
+});
+
+test('seal trader purchase is blocked without enough seals', function () {
+    $user = createUserWithCharacter();
+    $camp = \App\Models\Location::where('name', 'Лагерь Искателей')->first();
+    $user->character->update(['current_location_id' => $camp->id]);
+
+    $amuletOffer = \App\Models\MerchantOffer::where('location_id', $camp->id)
+        ->where('poi_type', 'seal_trader')
+        ->whereHas('item', fn ($q) => $q->where('catalog_key', 'seal_amulet'))
+        ->first();
+
+    $this->actingAs($user)->post(route('world.shop.buy', $amuletOffer))
+        ->assertSessionHasErrors('shop');
+
+    $amulet = \App\Models\Item::where('catalog_key', 'seal_amulet')->first();
+    expect($user->character->fresh()->inventoryItems()->where('item_id', $amulet->id)->count())->toBe(0);
+});
+
+test('craftsman seal upgrades crafted gear straight to level 14 with tier two resources', function () {
+    $user = createUserWithCharacter();
+    $city = \App\Models\Location::where('type', 'city')->first();
+    $user->character->update(['current_location_id' => $city->id, 'energy' => 20]);
+
+    $sword = \App\Models\Item::where('catalog_key', 'C-W01')->first();
+    $inventory = app(\App\Services\InventoryService::class);
+    $inv = $inventory->addEquipment($user->character, $sword, [
+        'quality' => 'green',
+        'source' => 'crafted',
+        'level' => 7,
+    ]);
+
+    $seal = \App\Models\Item::where('catalog_key', 'craftsman_seal')->first();
+    $hide = \App\Models\Item::where('catalog_key', 'monster_hide')->first();
+    $essence = \App\Models\Item::where('catalog_key', 'twilight_essence')->first();
+    $inventory->addItem($user->character, $seal, 1);
+    $inventory->addItem($user->character, $hide, 3);
+    $inventory->addItem($user->character, $essence, 2);
+
+    $this->actingAs($user)
+        ->post(route('crafting.upgrade', $inv->id), ['action' => 'crafted_level'])
+        ->assertRedirect();
+
+    expect($inv->fresh()->equipment_level)->toBe(14);
+    expect($user->character->fresh()->inventoryItems()->where('item_id', $seal->id)->sum('quantity'))->toBe(0);
+    expect($user->character->fresh()->inventoryItems()->where('item_id', $hide->id)->sum('quantity'))->toBe(0);
+    expect($user->character->fresh()->inventoryItems()->where('item_id', $essence->id)->sum('quantity'))->toBe(0);
+});
+
+test('recipe crafted gear upgrades quality with witch cores', function () {
+    $user = createUserWithCharacter();
+    $city = \App\Models\Location::where('type', 'city')->first();
+    $user->character->update(['current_location_id' => $city->id]);
+
+    $armor = \App\Models\Item::where('catalog_key', 'C-A02')->first();
+    $inventory = app(\App\Services\InventoryService::class);
+    $inv = $inventory->addEquipment($user->character, $armor, [
+        'quality' => 'white',
+        'source' => 'crafted',
+        'level' => 14,
+    ]);
+
+    $core = \App\Models\Item::where('catalog_key', 'witch_core')->first();
+    $cost = config('equipment.recipe_quality_upgrade.cost_per_tier.green');
+    $inventory->addItem($user->character, $core, $cost);
+
+    $this->actingAs($user)
+        ->post(route('crafting.upgrade', $inv->id), ['action' => 'crafted_quality'])
+        ->assertRedirect();
+
+    expect($inv->fresh()->quality)->toBe('green');
+    expect($inv->fresh()->equipment_level)->toBe(14);
+    expect($user->character->fresh()->inventoryItems()->where('item_id', $core->id)->sum('quantity'))->toBe(0);
+});
+
+test('recipe crafted gear always crafts white', function () {
+    $recipe = \App\Models\CraftingRecipe::where('name', 'Панцирь охотника')->first();
+
+    expect($recipe->fixed_result_quality)->toBe('white');
+    expect($recipe->quality_upgradable)->toBeTrue();
+});
+
+test('dungeon gear can be upgraded with sphere while still equipped', function () {
+    $user = createUserWithCharacter();
+    $city = \App\Models\Location::where('type', 'city')->first();
+    $user->character->update(['current_location_id' => $city->id]);
+
+    $armor = \App\Models\Item::where('catalog_key', 'D-A01')->first();
+    $inventory = app(\App\Services\InventoryService::class);
+    $inv = $inventory->addEquipment($user->character, $armor, [
+        'quality' => 'blue',
+        'source' => 'dungeon',
+        'level' => 7,
+    ]);
+    $inventory->equip($user->character->fresh(), $inv);
+
+    $sphere = \App\Models\Item::where('catalog_key', 'transformation_sphere')->first();
+    $sphereCost = config('equipment.dungeon_t2_upgrade.transformation_sphere');
+    $inventory->addItem($user->character, $sphere, $sphereCost);
+
+    expect($inv->fresh()->equippedSlot()->exists())->toBeTrue();
+
+    $this->actingAs($user)
+        ->post(route('crafting.upgrade', $inv->id), ['action' => 'dungeon_level'])
+        ->assertRedirect();
+
+    expect($inv->fresh()->equipment_level)->toBe(14);
+    expect($inv->fresh()->equippedSlot()->exists())->toBeTrue();
+    expect($user->character->fresh()->inventoryItems()->where('item_id', $sphere->id)->sum('quantity'))->toBe(0);
+});
+
+test('leaving the second dungeon delivers you to the seekers camp', function () {
+    $user = createUserWithCharacter();
+    $dungeon = \App\Models\Dungeon::where('catalog_key', 'spider_t2')->firstOrFail();
+    $cave = \App\Models\Location::where('name', 'Пещера Арахнидов')->firstOrFail();
+    $camp = \App\Models\Location::where('name', 'Лагерь Искателей')->firstOrFail();
+
+    $user->character->update([
+        'current_location_id' => $cave->id,
+        'energy' => 80,
+        'power' => 200,
+        'strength' => 60,
+        'hp' => 300,
+        'max_hp' => 300,
+    ]);
+
+    $pass = \App\Models\Item::where('catalog_key', 'dungeon_pass_t2')->firstOrFail();
+    app(\App\Services\InventoryService::class)->addItem($user->character, $pass, 1);
+
+    $service = app(\App\Services\DungeonService::class);
+    $run = $service->startRun($user->character->fresh(), $dungeon);
+
+    $run->currentFloorState()->update(['mob_defeated' => true]);
+
+    $service->leaveDungeon($user->character->fresh(), $run->fresh());
+
+    expect($user->character->fresh()->current_location_id)->toBe($camp->id);
+});
+
+test('tier two dungeon drops craftsman seals from mobs', function () {
+    $dungeon = \App\Models\Dungeon::where('catalog_key', 'spider_t2')->first();
+
+    expect($dungeon)->not->toBeNull();
+    expect($dungeon->lootChance('boss', 'craftsman_seal'))->toBeGreaterThan(0);
+    expect($dungeon->lootChance('normal', 'craftsman_seal'))->toBeGreaterThan(0);
 });

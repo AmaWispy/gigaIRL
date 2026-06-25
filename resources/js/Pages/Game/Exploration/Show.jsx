@@ -1,6 +1,6 @@
 import InputError from '@/Components/InputError';
 import GameLayout from '@/Layouts/GameLayout';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 const actionLabels = {
     monster: '👹 Встреча с монстром',
@@ -24,6 +24,13 @@ export default function ExplorationShow({ character, location, session, lookArou
 
             <div className="py-8">
                 <div className="mx-auto max-w-3xl px-4">
+                    <Link
+                        href={route('world.map')}
+                        className="mb-4 inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+                    >
+                        ← Вернуться на карту
+                    </Link>
+
                     <p className="mb-4 text-gray-600">{location.description}</p>
                     <p className="mb-6 text-sm text-amber-700">
                         Мин. мощь локации: {location.min_power}. Ваша мощь: {character.power}.

@@ -83,12 +83,13 @@ class CraftingController extends Controller
         }
 
         $validated = $request->validate([
-            'action' => 'required|in:crafted_level,dungeon_level',
+            'action' => 'required|in:crafted_level,crafted_quality,dungeon_level',
         ]);
 
         try {
             match ($validated['action']) {
                 'crafted_level' => $equipmentUpgradeService->upgradeCraftedLevel($character, $inventoryItem),
+                'crafted_quality' => $equipmentUpgradeService->upgradeCraftedQuality($character, $inventoryItem),
                 'dungeon_level' => $equipmentUpgradeService->upgradeDungeonLevel($character, $inventoryItem),
             };
         } catch (\InvalidArgumentException $e) {
