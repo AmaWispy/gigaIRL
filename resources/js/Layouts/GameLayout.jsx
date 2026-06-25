@@ -153,6 +153,32 @@ export default function GameLayout({ header, children }) {
                             </button>
                         </div>
                     </div>
+
+                    {character && (
+                        <div className="flex items-center gap-3 border-t border-gray-100 py-2 lg:hidden">
+                            <div className="min-w-0 flex-1">
+                                <StatBar
+                                    label="HP"
+                                    current={character.hp}
+                                    max={character.effective_max_hp ?? character.max_hp}
+                                    color="bg-red-500"
+                                />
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2 text-sm whitespace-nowrap">
+                                <span className="font-semibold text-amber-600">
+                                    ⚡ {character.energy}
+                                </span>
+                                <span className="text-gray-300">|</span>
+                                <span className="font-semibold text-yellow-600">
+                                    💰 {character.money}
+                                </span>
+                                <span className="text-gray-300">|</span>
+                                <span className="font-semibold text-blue-600">
+                                    Ур. {character.level}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className={(showingNavigationDropdown ? 'block' : 'hidden') + ' sm:hidden'}>
