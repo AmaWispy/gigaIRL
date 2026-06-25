@@ -30,7 +30,10 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->index(['character_id', 'achievement_template_id', 'completed_at']);
+            $table->index(
+                ['character_id', 'achievement_template_id', 'completed_at'],
+                'ach_comp_char_tpl_completed_idx'
+            );
         });
 
         Schema::create('energy_transactions', function (Blueprint $table) {

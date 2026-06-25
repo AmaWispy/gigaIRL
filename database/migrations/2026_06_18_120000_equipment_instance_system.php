@@ -16,6 +16,13 @@ return new class extends Migration
         });
 
         Schema::table('inventory_items', function (Blueprint $table) {
+            // MySQL привязывает FK character_id/item_id к unique-индексу;
+            // сначала создаём отдельные индексы, иначе dropUnique падает с error 1553.
+            $table->index('character_id', 'inv_char_id_idx');
+            $table->index('item_id', 'inv_item_id_idx');
+        });
+
+        Schema::table('inventory_items', function (Blueprint $table) {
             $table->dropUnique(['character_id', 'item_id']);
         });
 
@@ -24,7 +31,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('equipment_level')->nullable()->after('quality');
             $table->string('equipment_source')->nullable()->after('equipment_level');
             $table->unsignedSmallInteger('upgrade_count')->default(0)->after('equipment_source');
-            $table->index(['character_id', 'item_id']);
+            $table->index(['character_id', 'item_id'], 'inv_char_item_idx');
         });
 
         Schema::table('merchant_offers', function (Blueprint $table) {
@@ -43,8 +50,10 @@ return new class extends Migration
         });
 
         Schema::table('inventory_items', function (Blueprint $table) {
-            $table->dropIndex(['character_id', 'item_id']);
+            $table->dropIndex('inv_char_item_idx');
             $table->dropColumn(['quality', 'equipment_level', 'equipment_source', 'upgrade_count']);
+            $table->dropIndex('inv_char_id_idx');
+            $table->dropIndex('inv_item_id_idx');
             $table->unique(['character_id', 'item_id']);
         });
 
