@@ -11,7 +11,7 @@ export default function AdminLayout({ title, children, actions }) {
                 <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-6">
                         <Link href={route('admin.dashboard')} className="flex items-center gap-2">
-                            <ApplicationLogo className="h-8 w-auto fill-current text-amber-400" />
+                            <ApplicationLogo className="h-8 w-8" />
                             <span className="font-semibold">gigaIRL Admin</span>
                         </Link>
                         <Link

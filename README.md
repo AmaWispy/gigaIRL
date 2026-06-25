@@ -1,59 +1,242 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# gigaIRL
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**gigaIRL** — браузерная онлайн-RPG, в которой игровой прогресс завязан на реальные достижения игрока. Каждый день пользователь отмечает свои дела из реальной жизни (финансы, повседневные задачи, разовые свершения), получает за это **энергию** и тратит её на классические RPG-активности: путешествия по миру, бои с монстрами, прохождение данжей и ремесло.
 
-## About Laravel
+> Идея в том, чтобы «гриндить» собственную жизнь: чем продуктивнее день в реальности, тем больше энергии для приключений в игре.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Содержание
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- [Геймплей](#геймплей)
+- [Технологический стек](#технологический-стек)
+- [Архитектура](#архитектура)
+- [Структура проекта](#структура-проекта)
+- [Быстрый старт](#быстрый-старт)
+- [Разработка](#разработка)
+- [Тесты](#тесты)
+- [Игровые данные и баланс](#игровые-данные-и-баланс)
+- [Админка](#админка)
+- [Документация](#документация)
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Геймплей
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Достижения → энергия
+Игрок ежедневно отмечает выполненные дела в трёх категориях:
 
-## Laravel Sponsors
+- **Финансовые** — основной доход (500 ₽ = 1 очко) и дополнительный (350 ₽ = 1 очко).
+- **Обычные дела** — пользовательские задачи с собственной наградой и ограничением по частоте (раз в день/неделю/месяц). Есть набор дефолтных задач по сложности (лёгкая/непростая/средняя/сложная).
+- **Редкие** — одноразовые свершения (поездки, крупные события), награда выдаётся единожды.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Выполнение начисляет **энергию** — главный ресурс для всех игровых действий.
 
-### Premium Partners
+### Мир и исследование
+- Локации: безопасные зоны (города, деревни), опасные места (лес, поле, река) и данжи.
+- В опасной зоне доступно действие **«Осмотреться»**, которое выдаёт 2–4 случайных активности: бой с монстром, сбор ресурсов, а также редкие — сокровища, скопления ресурсов, редкий монстр, босс.
+- **Мощь** персонажа сравнивается с порогом локации: если ниже — при осмотре есть шанс 15% быть атакованным.
+- Покупаемый **камень перемещения** позволяет перемещаться без траты энергии.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Персонаж
+- Характеристики: **здоровье, защита, сила**, плюс уровень, опыт, деньги и мощь.
+- Здоровье полностью восстанавливается раз в сутки; частично — зельями и отдыхом в гостинице.
+- 11 слотов экипировки: ботинки, штаны, оружие, перчатки, шлем, пояс, 2 кольца, ожерелье, броня, плащ.
+- Боевые **навыки**, автоматически применяемые в бою.
+- Профессия **кузнеца**: добыча редких ресурсов и крафт качественного снаряжения.
 
-## Contributing
+### Бой
+- Пошаговый бой: чередуются обычные атаки и навыки, расходующие HP сторон.
+- Урон снижается защитой по формуле затухающего процента (не плоское вычитание).
+- Победа даёт опыт, деньги и изредка ресурсы. Редкие монстры и боссы роняют экипировку, ценные ресурсы и артефакты.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Экипировка и крафт
+- Три источника снаряжения: **торговец**, **крафт** (+15% к торговому), **данж/сет** (+10% к крафту).
+- Качество (цвет): ⚪ белое → 🟢 зелёное → 🔵 синее → 🟣 фиолетовое → 🔴 красное.
+- Улучшение через печати ремесленника и сферы становления.
+- Категории предметов: одежда, оружие, бижутерия (кольца + амулет), плащ.
 
-## Code of Conduct
+### Данжи
+- Многоэтажные забеги с обычными мобами, редким мобом и боссом на последнем этаже.
+- Уникальные сеты экипировки, эксклюзивные ресурсы и таблицы дропа, настраиваемые **на каждый данж в БД**.
+- Вход по пропуску; внутри — бои, кучи ресурсов и сундуки с сокровищами.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Технологический стек
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Слой | Технологии |
+|------|------------|
+| Backend | PHP 8.2+, [Laravel 12](https://laravel.com) |
+| Frontend | React 18 + [Inertia.js 2](https://inertiajs.com), Tailwind CSS, Vite |
+| Аутентификация | Laravel Breeze + Sanctum |
+| Маршруты во фронте | Ziggy |
+| Тесты | [Pest 3](https://pestphp.com) |
+| Инструменты | Laravel Pint, Pail, Sail |
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Архитектура
+
+Проект следует монолитной схеме Laravel + Inertia (SPA на React без отдельного REST API). Бизнес-логика вынесена в **сервисный слой** (`app/Services`), контроллеры остаются тонкими.
+
+Ключевые сервисы:
+
+| Сервис | Назначение |
+|--------|------------|
+| `AchievementService` | Достижения и начисление энергии |
+| `EnergyService` | Списание/начисление энергии, лог транзакций |
+| `CharacterService` | Характеристики, уровни, HP, мощь |
+| `TravelService` | Перемещение между локациями |
+| `ExplorationService` | «Осмотреться», генерация действий, входы в данжи |
+| `CombatService` / `CombatDamageService` / `CombatSkillService` | Пошаговый бой, расчёт урона, навыки |
+| `SkillService` | Изучение и экипировка навыков |
+| `InventoryService` | Инвентарь, экипировка, расходники |
+| `EquipmentService` / `EquipmentUpgradeService` | Расчёт статов, качество, улучшение |
+| `CraftingService` | Профессия кузнеца, рецепты, крафт |
+| `MerchantService` | Лавки и торговля |
+| `DungeonService` / `DungeonConfigService` | Логика забегов, дроп, настройки данжей |
+| `FlavorService` | Атмосферные тексты |
+
+---
+
+## Структура проекта
+
+```
+app/
+  Console/Commands/      # game:reset-daily-hp — суточный сброс HP
+  Http/Controllers/
+    Game/                # игровые контроллеры (мир, бой, данжи, крафт, ...)
+    Admin/               # админ-панель
+  Models/                # Eloquent-модели (Character, Item, Dungeon, ...)
+  Services/              # бизнес-логика
+  Admin/                 # реестр ресурсов админки
+config/
+  game.php               # слоты, базовые параметры, энергия зелий
+  equipment.php          # качество, источники, профили слотов, сеты
+  skills.php             # боевые навыки
+  game_flavor.php        # тексты
+database/
+  migrations/            # схема (ядро, мир, бой, данжи, экипировка, навыки)
+  seeders/GameDataSeeder.php  # наполнение игрового контента
+resources/js/Pages/
+  Game/                  # экраны игры (Hub, World, Combat, Dungeon, ...)
+  Admin/                 # экраны админки
+  Auth/                  # регистрация, вход, настройка профиля
+routes/
+  web.php                # игровые и профильные маршруты
+  admin.php              # маршруты админки (префикс /admin)
+  auth.php               # аутентификация
+info/                    # игровые дизайн-документы (GDD)
+tests/Feature/           # Pest feature-тесты
+```
+
+---
+
+## Быстрый старт
+
+### Требования
+- PHP **8.2+**
+- Composer
+- Node.js + npm
+- БД (по умолчанию SQLite; поддерживается MySQL/PostgreSQL)
+
+### Установка
+
+```bash
+# 1. Зависимости PHP
+composer install
+
+# 2. Окружение
+cp .env.example .env
+php artisan key:generate
+
+# 3. База данных (SQLite по умолчанию)
+php artisan migrate
+
+# 4. Наполнение игровыми данными
+php artisan db:seed --class=GameDataSeeder
+
+# 5. Зависимости фронтенда
+npm install
+npm run build
+```
+
+> Composer-скрипт `composer setup` выполняет шаги 1–5 (кроме сидера) одной командой.
+
+---
+
+## Разработка
+
+Запуск всех процессов разработки (сервер + очередь + логи + Vite) одной командой:
+
+```bash
+composer dev
+```
+
+Или по отдельности:
+
+```bash
+php artisan serve     # бэкенд
+npm run dev           # Vite dev-сервер (HMR)
+```
+
+Форматирование кода:
+
+```bash
+./vendor/bin/pint
+```
+
+Суточный сброс HP персонажей (вешается на планировщик):
+
+```bash
+php artisan game:reset-daily-hp
+```
+
+---
+
+## Тесты
+
+Проект покрыт feature-тестами на Pest (`tests/Feature/GameTest.php`).
+
+```bash
+composer test
+# или
+php artisan test
+```
+
+Тесты охватывают достижения, исследование мира, бой, навыки, экипировку, крафт и данжи.
+
+---
+
+## Игровые данные и баланс
+
+Баланс и контент разнесены между **конфигами** и **базой данных**:
+
+- `config/game.php`, `config/equipment.php`, `config/skills.php` — формулы и базовые параметры (качество, профили слотов, бонусы сетов, навыки).
+- Настройки данжей (энергия, этажи, шансы дропа, пулы ресурсов, множители опыта, цена пропуска) хранятся **в БД** в таблицах `dungeons`, `dungeon_loot_rules`, `dungeon_resource_pools` — чтобы их можно было удобно править и видеть в админке.
+- Начальный контент (предметы, монстры, локации, рецепты, данжи) задаётся в `database/seeders/GameDataSeeder.php`.
+
+---
+
+## Админка
+
+Доступна по префиксу `/admin` для пользователей с флагом `is_admin` (middleware `admin`).
+
+- Дашборд и просмотр конфигурации.
+- CRUD по игровым ресурсам (предметы, монстры, локации, данжи, рецепты и т.д.) через универсальный `ResourceController` и реестр `App\Admin\AdminResourceRegistry`.
+
+---
+
+## Документация
+
+Игровые дизайн-документы (GDD) лежат в каталоге `info/`:
+
+- `info/main features.txt` — общая концепция игры.
+- `info/equipment-system.md` — система экипировки, качество, источники, сеты, каталог предметов.
+- `info/dungeon-system.md` — устройство данжей, дроп, награды.
+- `info/auth.txt` — требования к регистрации и профилю.
+
+---
+
+Построено на [Laravel](https://laravel.com) и [Inertia.js](https://inertiajs.com). Лицензия фреймворка — MIT.
